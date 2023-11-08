@@ -14,14 +14,20 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariPool;
 import lombok.extern.java.Log;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.scheduler.BukkitTask;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 @Log
@@ -32,6 +38,12 @@ public class HikariStorage implements DataStorage {
     private HikariDataSource hikariDataSource;
     private String vaultTable;
     private String metadataTable;
+    private String stateTable;
+    private final ReadWriteLock taskLock = new ReentrantReadWriteLock();
+    private BukkitTask getTask;
+    private BukkitTask aliveTask;
+
+    private final Map<UUID, Consumer<List<Vault>>> lockedPlayers = new HashMap<>();
 
     @Override
     public boolean init(Storage storage) {
@@ -67,14 +79,28 @@ public class HikariStorage implements DataStorage {
 
         vaultTable = settings.getString("tables.vault");
         metadataTable = settings.getString("tables.vault-metadata");
+        stateTable = settings.getString("tables.vault-state", "endervaults_vault_state");
 
         createTableIfNotExist(vaultTable, DatabaseConstants.SQL_CREATE_TABLE_VAULT);
         createTableIfNotExist(metadataTable, DatabaseConstants.SQL_CREATE_TABLE_VAULT_METADATA);
+        createTableIfNotExist(stateTable, DatabaseConstants.SQL_CREATE_TABLE_VAULT_STATE);
+
+        getTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::getStates, 40L, 20L);
+        aliveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            aliveStates(plugin.getPersister().getPersisted());
+        }, 20L, 600L);
+
         return hikariDataSource.isRunning();
     }
 
     @Override
     public void close() {
+        if (getTask != null && !getTask.isCancelled()) {
+            getTask.cancel();
+        }
+        if (aliveTask != null && !aliveTask.isCancelled()) {
+            aliveTask.cancel();
+        }
         if (hikariDataSource != null && hikariDataSource.isRunning()) {
             hikariDataSource.close();
         }
@@ -98,8 +124,8 @@ public class HikariStorage implements DataStorage {
     }
 
     @Override
-    public List<Vault> load(UUID ownerUUID) {
-        return get(ownerUUID);
+    public void load(UUID ownerUUID, Consumer<List<Vault>> consumer) {
+        lockedPlayers.put(ownerUUID, consumer);
     }
 
     @Override
@@ -131,6 +157,16 @@ public class HikariStorage implements DataStorage {
                 metadataRegistry.get(key)
                         .ifPresent(converter -> insert(vault.getId(), vault.getOwner(), key, converter.from(value)));
             }
+        }
+    }
+
+    @Override
+    public void save(UUID ownerUUID, Collection<Vault> vaults) throws IOException {
+        updateState(ownerUUID, "LOCKED");
+        try {
+            DataStorage.super.save(ownerUUID, vaults);
+        } finally {
+            updateState(ownerUUID, "SAVED");
         }
     }
 
@@ -286,5 +322,74 @@ public class HikariStorage implements DataStorage {
             return false;
         }
         return has;
+    }
+
+    private void updateState(UUID uniqueId, String state) {
+        String sql = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, metadataTable);
+        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, uniqueId.toString());
+            stmt.setString(2, state);
+
+            stmt.execute();
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+        }
+    }
+
+    private void getStates() {
+        if (lockedPlayers.isEmpty()) {
+            return;
+        }
+        taskLock.readLock().lock();
+
+        Set<UUID> locked = new HashSet<>();
+        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_STATES, metadataTable);
+        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet result = stmt.executeQuery();
+            while (result.next()) {
+                locked.add(UUID.fromString(result.getString("id")));
+            }
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+        } finally {
+            lockedPlayers.entrySet().removeIf(entry -> {
+                if (locked.contains(entry.getKey())) {
+                    return false;
+                }
+                if (Bukkit.getPlayer(entry.getKey()) == null) {
+                    return true;
+                }
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> entry.getValue().accept(get(entry.getKey())));
+                return true;
+            });
+            locked.clear();
+            taskLock.readLock().unlock();
+        }
+    }
+
+    private void aliveStates(List<UUID> loaded) {
+        taskLock.readLock().lock();
+
+        try (Connection conn = hikariDataSource.getConnection()) {
+            if (!loaded.isEmpty()) {
+                String insert = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, metadataTable);
+                try (PreparedStatement stmt = conn.prepareStatement(insert)) {
+                    for (int i = 0; i < loaded.size(); i++) {
+                        stmt.setString(1, loaded.get(i).toString());
+                        stmt.setString(2, "LOCKED");
+                        stmt.addBatch();
+                    }
+                    stmt.executeBatch();
+                }
+            }
+            String delete = String.format(DatabaseConstants.SQL_DELETE_VAULT_STATES, metadataTable);
+            try (PreparedStatement statement = conn.prepareStatement(delete)) {
+                statement.execute();
+            }
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+        } finally {
+            taskLock.readLock().unlock();
+        }
     }
 }

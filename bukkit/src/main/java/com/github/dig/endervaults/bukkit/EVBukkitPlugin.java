@@ -3,14 +3,10 @@ package com.github.dig.endervaults.bukkit;
 import com.github.dig.endervaults.api.EnderVaultsPlugin;
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.exception.PluginAlreadySetException;
-import com.github.dig.endervaults.api.file.DataFile;
-import com.github.dig.endervaults.api.lang.Language;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
-import com.github.dig.endervaults.api.vault.VaultPersister;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
-import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.command.VaultAdminCommand;
 import com.github.dig.endervaults.bukkit.command.VaultMigrateCommand;
 import com.github.dig.endervaults.bukkit.command.VaultReloadCommand;
@@ -24,7 +20,6 @@ import com.github.dig.endervaults.bukkit.vault.BukkitVaultPersister;
 import com.github.dig.endervaults.bukkit.vault.metadata.BukkitVaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.vault.metadata.IntegerMetadataConverter;
 import com.github.dig.endervaults.bukkit.vault.metadata.StringMetadataConverter;
-import com.github.dig.endervaults.api.vault.VaultRegistry;
 import com.github.dig.endervaults.bukkit.command.VaultCommand;
 import com.github.dig.endervaults.bukkit.file.BukkitDataFile;
 import com.github.dig.endervaults.bukkit.lang.BukkitLanguage;
@@ -44,36 +39,36 @@ import java.util.logging.Level;
 @Log
 public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
 
-    private DataFile<FileConfiguration> langFile;
-    private DataFile<FileConfiguration> configFile;
+    private BukkitDataFile langFile;
+    private BukkitDataFile configFile;
 
-    private VaultRegistry registry;
-    private Language language;
-    private VaultMetadataRegistry metadataRegistry;
+    private BukkitVaultRegistry registry;
+    private BukkitLanguage language;
+    private BukkitVaultMetadataRegistry metadataRegistry;
     private DataStorage dataStorage;
-    private VaultPersister persister;
+    private BukkitVaultPersister persister;
     private BukkitUserPermission permission;
     private Metrics metrics;
 
     private BukkitTask autoSaveTask;
 
     @Override
-    public DataFile<FileConfiguration> getLangFile() {
+    public BukkitDataFile getLangFile() {
         return langFile;
     }
 
     @Override
-    public DataFile<FileConfiguration> getConfigFile() {
+    public BukkitDataFile getConfigFile() {
         return configFile;
     }
 
     @Override
-    public VaultRegistry getRegistry() {
+    public BukkitVaultRegistry getRegistry() {
         return registry;
     }
 
     @Override
-    public Language getLanguage() {
+    public BukkitLanguage getLanguage() {
         return language;
     }
 
@@ -83,7 +78,7 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
     }
 
     @Override
-    public VaultPersister getPersister() {
+    public BukkitVaultPersister getPersister() {
         return persister;
     }
 
@@ -93,7 +88,7 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
     }
 
     @Override
-    public VaultMetadataRegistry getMetadataRegistry() {
+    public BukkitVaultMetadataRegistry getMetadataRegistry() {
         return metadataRegistry;
     }
 

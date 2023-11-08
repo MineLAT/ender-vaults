@@ -163,6 +163,7 @@ storage:
       tables:
         vault: 'endervaults_vault'
         vault-metadata: 'endervaults_vault_metadata'
+        vault-state: 'endervaults_vault_state'
 
     # MariaDB settings
     mariadb:
@@ -187,3 +188,4 @@ storage:
       tables:
         vault: 'endervaults_vault'
         vault-metadata: 'endervaults_vault_metadata'
+        vault-state: 'endervaults_vault_state'

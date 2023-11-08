@@ -18,6 +18,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Consumer;
 
 @Log
 public class YamlStorage implements DataStorage {
@@ -39,7 +40,7 @@ public class YamlStorage implements DataStorage {
     }
 
     @Override
-    public List<Vault> load(UUID ownerUUID) {
+    public void load(UUID ownerUUID, Consumer<List<Vault>> consumer) {
         List<Vault> vaults = new ArrayList<>();
 
         File file = getOwnerFolder(ownerUUID);
@@ -47,11 +48,11 @@ public class YamlStorage implements DataStorage {
             File[] files = file.listFiles((File f, String name) -> name.endsWith(".yml"));
             for (File vaultFile : files) {
                 UUID id = UUID.fromString(Files.getNameWithoutExtension(vaultFile.getName()));
-                load(ownerUUID, id).ifPresent(vault -> vaults.add(vault));
+                load(ownerUUID, id).ifPresent(vaults::add);
             }
         }
 
-        return vaults;
+        consumer.accept(vaults);
     }
 
     @Override

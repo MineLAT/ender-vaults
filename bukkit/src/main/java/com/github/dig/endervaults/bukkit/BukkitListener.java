@@ -3,13 +3,12 @@ package com.github.dig.endervaults.bukkit;
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.permission.UserPermission;
-import com.github.dig.endervaults.api.vault.VaultPersister;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorInventory;
+import com.github.dig.endervaults.bukkit.vault.BukkitVaultPersister;
 import com.github.dig.endervaults.bukkit.vault.BukkitVaultRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -35,7 +34,7 @@ import java.util.stream.Collectors;
 public class BukkitListener implements Listener {
 
     private final EVBukkitPlugin plugin = (EVBukkitPlugin) VaultPluginProvider.getPlugin();
-    private final VaultPersister persister = plugin.getPersister();
+    private final BukkitVaultPersister persister = plugin.getPersister();
     private final UserPermission<Player> permission = plugin.getPermission();
 
     private final Map<UUID, BukkitTask> pendingLoadMap = new HashMap<>();
@@ -64,7 +63,7 @@ public class BukkitListener implements Listener {
     public void onClick(InventoryClickEvent event) {
         Player player = (Player) event.getWhoClicked();
 
-        BukkitVaultRegistry registry = (BukkitVaultRegistry) plugin.getRegistry();
+        BukkitVaultRegistry registry = plugin.getRegistry();
         ItemStack item = event.getCurrentItem();
         Inventory inventory = event.getInventory();
 
@@ -78,7 +77,7 @@ public class BukkitListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMove(InventoryMoveItemEvent event) {
-        BukkitVaultRegistry registry = (BukkitVaultRegistry) plugin.getRegistry();
+        BukkitVaultRegistry registry = plugin.getRegistry();
         ItemStack item = event.getItem();
         Inventory inventory = event.getDestination();
 
@@ -93,7 +92,7 @@ public class BukkitListener implements Listener {
     public void onDrag(InventoryDragEvent event) {
         Player player = (Player) event.getWhoClicked();
 
-        BukkitVaultRegistry registry = (BukkitVaultRegistry) plugin.getRegistry();
+        BukkitVaultRegistry registry = plugin.getRegistry();
         ItemStack item = event.getCursor();
         Inventory inventory = event.getInventory();
 
