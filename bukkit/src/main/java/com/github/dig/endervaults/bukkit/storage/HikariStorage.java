@@ -325,7 +325,7 @@ public class HikariStorage implements DataStorage {
     }
 
     private void updateState(UUID uniqueId, String state) {
-        String sql = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, metadataTable);
+        String sql = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, stateTable);
         try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, uniqueId.toString());
             stmt.setString(2, state);
@@ -343,7 +343,7 @@ public class HikariStorage implements DataStorage {
         taskLock.readLock().lock();
 
         Set<UUID> locked = new HashSet<>();
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_STATES, metadataTable);
+        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_STATES, stateTable);
         try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet result = stmt.executeQuery();
             while (result.next()) {
@@ -372,7 +372,7 @@ public class HikariStorage implements DataStorage {
 
         try (Connection conn = hikariDataSource.getConnection()) {
             if (!loaded.isEmpty()) {
-                String insert = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, metadataTable);
+                String insert = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, stateTable);
                 try (PreparedStatement stmt = conn.prepareStatement(insert)) {
                     for (int i = 0; i < loaded.size(); i++) {
                         stmt.setString(1, loaded.get(i).toString());
@@ -382,9 +382,9 @@ public class HikariStorage implements DataStorage {
                     stmt.executeBatch();
                 }
             }
-            String delete = String.format(DatabaseConstants.SQL_DELETE_VAULT_STATES, metadataTable);
-            try (PreparedStatement statement = conn.prepareStatement(delete)) {
-                statement.execute();
+            String delete = String.format(DatabaseConstants.SQL_DELETE_VAULT_STATES, stateTable);
+            try (PreparedStatement stmt = conn.prepareStatement(delete)) {
+                stmt.execute();
             }
         } catch (SQLException ex) {
             log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);

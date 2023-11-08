@@ -32,6 +32,7 @@ processResources {
 }
 
 shadowJar {
+    archiveBaseName.set(rootProject.name + '-' + project.name)
     archiveClassifier.set('')
 
     relocate 'com.zaxxer.hikari', project.group + '.lib.hikari'
