@@ -359,7 +359,13 @@ public class HikariStorage implements DataStorage {
                 if (Bukkit.getPlayer(entry.getKey()) == null) {
                     return true;
                 }
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> entry.getValue().accept(get(entry.getKey())));
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                    if (Bukkit.getPlayer(entry.getKey()) == null) {
+                        return;
+                    }
+                    entry.getValue().accept(get(entry.getKey()));
+                    updateState(entry.getKey(), "LOCKED");
+                });
                 return true;
             });
             locked.clear();
