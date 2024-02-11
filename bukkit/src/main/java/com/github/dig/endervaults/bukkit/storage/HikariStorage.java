@@ -125,7 +125,9 @@ public class HikariStorage implements DataStorage {
 
     @Override
     public void load(UUID ownerUUID, Consumer<List<Vault>> consumer) {
-        lockedPlayers.put(ownerUUID, consumer);
+        if (!lockedPlayers.containsKey(ownerUUID)) {
+            lockedPlayers.put(ownerUUID, consumer);
+        }
     }
 
     @Override
@@ -352,22 +354,17 @@ public class HikariStorage implements DataStorage {
         } catch (SQLException ex) {
             log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         } finally {
-            lockedPlayers.entrySet().removeIf(entry -> {
-                if (locked.contains(entry.getKey())) {
-                    return false;
+            for (Map.Entry<UUID, Consumer<List<Vault>>> entry : lockedPlayers.entrySet()) {
+                if (!locked.contains(entry.getKey())) {
+                    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                        if (Bukkit.getPlayer(entry.getKey()) != null) {
+                            entry.getValue().accept(get(entry.getKey()));
+                            updateState(entry.getKey(), "LOCKED");
+                        }
+                        lockedPlayers.remove(entry.getKey());
+                    });
                 }
-                if (Bukkit.getPlayer(entry.getKey()) == null) {
-                    return true;
-                }
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                    if (Bukkit.getPlayer(entry.getKey()) == null) {
-                        return;
-                    }
-                    entry.getValue().accept(get(entry.getKey()));
-                    updateState(entry.getKey(), "LOCKED");
-                });
-                return true;
-            });
+            }
             locked.clear();
             taskLock.readLock().unlock();
         }

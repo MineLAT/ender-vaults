@@ -21,6 +21,7 @@ public class BukkitVaultPersister implements VaultPersister {
 
     @Override
     public void load(UUID ownerUUID) {
+        remove(ownerUUID);
         registry.clean(ownerUUID);
         dataStorage.load(ownerUUID, vaults -> {
             vaults.forEach(vault -> registry.register(ownerUUID, vault));
@@ -65,11 +66,11 @@ public class BukkitVaultPersister implements VaultPersister {
         return persisted;
     }
 
-    private synchronized void finish(UUID ownerUUID) {
+    public synchronized void finish(UUID ownerUUID) {
         persisted.add(ownerUUID);
     }
 
-    private synchronized void remove(UUID ownerUUID) {
+    public synchronized void remove(UUID ownerUUID) {
         persisted.remove(ownerUUID);
     }
 }

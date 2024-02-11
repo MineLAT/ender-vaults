@@ -42,6 +42,7 @@ public class BukkitListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        persister.remove(player.getUniqueId());
         FileConfiguration config = plugin.getConfigFile().getConfiguration();
         BukkitTask bukkitTask = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin,
                 () -> persister.load(player.getUniqueId()),
@@ -55,6 +56,7 @@ public class BukkitListener implements Listener {
         if (pendingLoadMap.containsKey(player.getUniqueId())) {
             pendingLoadMap.remove(player.getUniqueId()).cancel();
         }
+        persister.remove(player.getUniqueId());
         Bukkit.getScheduler().runTaskAsynchronously(plugin,
                 () -> persister.save(player.getUniqueId()));
     }
