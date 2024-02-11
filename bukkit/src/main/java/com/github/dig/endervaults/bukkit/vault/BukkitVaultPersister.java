@@ -7,9 +7,9 @@ import com.github.dig.endervaults.api.vault.VaultRegistry;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 @Log
@@ -17,7 +17,7 @@ public class BukkitVaultPersister implements VaultPersister {
 
     private final DataStorage dataStorage = VaultPluginProvider.getPlugin().getDataStorage();
     private final VaultRegistry registry = VaultPluginProvider.getPlugin().getRegistry();
-    private final List<UUID> persisted = new ArrayList<>();
+    private final Set<UUID> persisted = ConcurrentHashMap.newKeySet();
 
     @Override
     public void load(UUID ownerUUID) {
@@ -62,15 +62,15 @@ public class BukkitVaultPersister implements VaultPersister {
         return persisted.contains(ownerUUID);
     }
 
-    public List<UUID> getPersisted() {
+    public Set<UUID> getPersisted() {
         return persisted;
     }
 
-    public synchronized void finish(UUID ownerUUID) {
+    public void finish(UUID ownerUUID) {
         persisted.add(ownerUUID);
     }
 
-    public synchronized void remove(UUID ownerUUID) {
+    public void remove(UUID ownerUUID) {
         persisted.remove(ownerUUID);
     }
 }

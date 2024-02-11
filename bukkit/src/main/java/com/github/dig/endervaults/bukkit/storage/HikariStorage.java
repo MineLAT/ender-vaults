@@ -370,15 +370,15 @@ public class HikariStorage implements DataStorage {
         }
     }
 
-    private void aliveStates(List<UUID> loaded) {
+    private void aliveStates(Set<UUID> loaded) {
         taskLock.readLock().lock();
 
         try (Connection conn = hikariDataSource.getConnection()) {
             if (!loaded.isEmpty()) {
                 String insert = String.format(DatabaseConstants.SQL_INSERT_VAULT_STATE, stateTable);
                 try (PreparedStatement stmt = conn.prepareStatement(insert)) {
-                    for (int i = 0; i < loaded.size(); i++) {
-                        stmt.setString(1, loaded.get(i).toString());
+                    for (UUID uuid : loaded) {
+                        stmt.setString(1, uuid.toString());
                         stmt.setString(2, "LOCKED");
                         stmt.addBatch();
                     }
