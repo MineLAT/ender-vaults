@@ -6,6 +6,7 @@ import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.lang.Language;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.VaultPersister;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorInventory;
@@ -35,8 +36,15 @@ public class VaultCommand implements CommandExecutor {
                 return true;
             }
 
-            if (!plugin.getPersister().isLoaded(player.getUniqueId())) {
+            final VaultPersister.State state = plugin.getPersister().getState(player.getUniqueId());
+            if (state == VaultPersister.State.UNKNOWN) {
+                sender.sendMessage("§4Your vaults state is unknown, try again or contact an administrator");
+                return true;
+            } else if (state == VaultPersister.State.LOADING) {
                 sender.sendMessage(language.get(Lang.PLAYER_NOT_LOADED));
+                return true;
+            } else if (state == VaultPersister.State.ERROR) {
+                sender.sendMessage(language.get(Lang.PLAYER_LOADING_ERROR));
                 return true;
             }
 

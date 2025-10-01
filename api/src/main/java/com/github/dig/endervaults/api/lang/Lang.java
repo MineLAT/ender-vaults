@@ -10,6 +10,7 @@ public enum Lang {
     VAULT_SELECT_ICON_TITLE("vault-select-icon-title"),
     INVALID_VAULT_ORDER("invalid-vault-order"),
     PLAYER_NOT_LOADED("player-not-loaded"),
+    PLAYER_LOADING_ERROR("player-loading-error"),
     NO_PERMISSION("no-permission"),
     CONFIG_RELOAD("config-reload"),
     BLACKLISTED_ITEM("blacklisted-item"),

@@ -9,7 +9,6 @@ import com.github.dig.endervaults.bukkit.vault.BukkitVaultRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -112,8 +111,15 @@ public class BukkitListener implements Listener {
 
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && block.getType() == Material.ENDER_CHEST && isEnderchestReplaced()) {
             event.setCancelled(true);
-            if (!persister.isLoaded(player.getUniqueId())) {
+            final VaultPersister.State state = plugin.getPersister().getState(player.getUniqueId());
+            if (state == VaultPersister.State.UNKNOWN) {
+                player.sendMessage("§4Your vaults state is unknown, try again or contact an administrator");
+                return;
+            } else if (state == VaultPersister.State.LOADING) {
                 player.sendMessage(plugin.getLanguage().get(Lang.PLAYER_NOT_LOADED));
+                return;
+            } else if (state == VaultPersister.State.ERROR) {
+                player.sendMessage(plugin.getLanguage().get(Lang.PLAYER_LOADING_ERROR));
                 return;
             }
             new SelectorInventory(player.getUniqueId(), 1).launchFor(player);

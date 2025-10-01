@@ -10,6 +10,14 @@ public interface VaultPersister {
 
     void save();
 
-    boolean isLoaded(UUID ownerUUID);
+    State getState(UUID ownerUUID);
 
+    enum State {
+
+        UNKNOWN,
+        LOADING,
+        LOADED,
+        ERROR;
+
+    }
 }
