@@ -1,5 +1,5 @@
 plugins {
-    id 'com.gradleup.shadow' version '8.3.1'
+    id 'com.gradleup.shadow' version '8.3.5'
 }
 
 repositories {
@@ -13,14 +13,15 @@ repositories {
 dependencies {
     implementation project(':api')
 
-    compileOnly('org.spigotmc:spigot:1.21.1-R0.1-SNAPSHOT') {
+    compileOnly('org.spigotmc:spigot:1.21.5-R0.1-SNAPSHOT:remapped-mojang') {
         exclude group: 'com.mojang'
     }
+    compileOnly('com.github.Rubenicos:DataFixerUpper:8.0') { transitive = false }
 
     implementation 'com.zaxxer:HikariCP:5.1.0'
     implementation 'org.mariadb.jdbc:mariadb-java-client:3.2.0'
-    implementation 'com.saicone.rtag:rtag:1.5.6'
-    implementation 'com.saicone.rtag:rtag-item:1.5.6'
+    implementation 'com.saicone.rtag:rtag:1.5.12'
+    implementation 'com.saicone.rtag:rtag-item:1.5.12'
 }
 
 processResources {
@@ -32,6 +33,7 @@ processResources {
 }
 
 shadowJar {
+    archiveBaseName.set(rootProject.name + '-' + project.name)
     archiveClassifier.set('')
 
     relocate 'com.zaxxer.hikari', project.group + '.lib.hikari'

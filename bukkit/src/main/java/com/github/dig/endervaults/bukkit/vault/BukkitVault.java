@@ -2,11 +2,14 @@ package com.github.dig.endervaults.bukkit.vault;
 
 import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.bukkit.util.ItemDataFix;
 import com.saicone.rtag.item.ItemObject;
 import com.saicone.rtag.item.ItemTagStream;
 import com.saicone.rtag.stream.TStreamTools;
+import com.saicone.rtag.tag.TagBase;
 import com.saicone.rtag.tag.TagCompound;
 import com.saicone.rtag.tag.TagList;
+import com.saicone.rtag.util.ServerInstance;
 import lombok.Getter;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
@@ -22,6 +25,8 @@ import java.util.logging.Level;
 
 @Log
 public class BukkitVault implements Vault, VaultSerializable {
+
+    public static final String DATA_VERSION_KEY = "DataVersion";
 
     private UUID id;
     private UUID ownerUUID;
@@ -86,8 +91,14 @@ public class BukkitVault implements Vault, VaultSerializable {
             Object tagList = TagList.newTag();
             List<Object> list = TagList.getValue(tagList);
             for (ItemStack item : inventory.getContents()) {
-                Object mcItem = item != null ? ItemObject.asNMSCopy(item) : null;
-                list.add(mcItem != null ? ItemObject.save(mcItem) : TagCompound.newTag());
+                final Object compound;
+                if (item != null && item.getType() != Material.AIR) {
+                    compound = ItemObject.save(ItemObject.asNMSCopy(item));
+                    TagCompound.set(compound, DATA_VERSION_KEY, TagBase.newTag(ServerInstance.DATA_VERSION));
+                } else {
+                    compound = TagCompound.newTag();
+                }
+                list.add(compound);
             }
             TStreamTools.write(tagList, out);
             return new String(Base64.getEncoder().encode(array.toByteArray()));
@@ -105,7 +116,19 @@ public class BukkitVault implements Vault, VaultSerializable {
             List<Object> list = TagList.getValue(tagList);
             for (int i = 0; i < list.size() && i < items.length; i++) {
                 Object compound = list.get(i);
-                if (compound != null && !TagCompound.getValue(compound).isEmpty()) {
+                final var value = TagCompound.getValue(compound);
+                if (compound == null || value.isEmpty()) {
+                    continue;
+                }
+
+                final String id = String.valueOf(TagBase.getValue(value.get("id")));
+                if (id.equalsIgnoreCase("minecraft:air") || id.equalsIgnoreCase("air")) {
+                    continue;
+                }
+
+                if (ServerInstance.Release.COMPONENT && ServerInstance.Type.MOJANG_MAPPED) {
+                    items[i] = ItemDataFix.decodeItem(compound);
+                } else {
                     items[i] = ItemTagStream.INSTANCE.fromCompound(compound);
                 }
             }
