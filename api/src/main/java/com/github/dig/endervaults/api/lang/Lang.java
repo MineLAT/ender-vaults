@@ -15,7 +15,8 @@ public enum Lang {
     CONFIG_RELOAD("config-reload"),
     BLACKLISTED_ITEM("blacklisted-item"),
     PLAYER_NOT_FOUND("player-not-found"),
-    ONLY_FROM_CONSOLE("only-from-console");
+    ONLY_FROM_CONSOLE("only-from-console"),
+    VAULT_DELETE("vault-delete");
 
     @Getter
     private String key;

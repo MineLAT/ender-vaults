@@ -103,6 +103,17 @@ public class YamlStorage implements DataStorage {
         configuration.save(file);
     }
 
+    @Override
+    public int delete(UUID ownerUUID) {
+        File file = getOwnerFolder(ownerUUID);
+        int result = 0;
+        if (file.exists() && file.isDirectory()) {
+            result = file.listFiles((File f, String name) -> name.endsWith(".yml")).length;
+            file.delete();
+        }
+        return result;
+    }
+
     private String getDirectoryName() {
         FileConfiguration configuration = (FileConfiguration) plugin.getConfigFile().getConfiguration();
         return configuration.getString("storage.settings.flatfile.directory", "data");

@@ -9,6 +9,7 @@ public class DatabaseConstants {
     public static final String SQL_SELECT_VAULT_BY_OWNER = "SELECT * FROM `%s` WHERE `owner_uuid` = ?";
     public static final String SQL_INSERT_VAULT = "INSERT INTO `%s`(`id`, `owner_uuid`, `size`, `contents`) VALUES (?, ?, ?, ?)";
     public static final String SQL_UPDATE_VAULT_BY_ID_AND_OWNER = "UPDATE `%s` SET `size` = ?, `contents` = ? WHERE `id` = ? AND `owner_uuid` = ?";
+    public static final String SQL_DELETE_VAULT_BY_OWNER = "DELETE FROM `%s` WHERE `owner_uuid` = ?";
 
     public static final String SQL_SELECT_VAULT_METADATA_BY_ID_AND_OWNER = "SELECT * FROM `%s` WHERE `id` = ? AND `owner_uuid` = ?";
     public static final String SQL_SELECT_VAULT_METADATA_BY_ID_AND_OWNER_AND_KEY = "SELECT * FROM `%s` WHERE `id` = ? AND `owner_uuid` = ? AND `name` = ?";

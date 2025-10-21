@@ -16,3 +16,6 @@ commands:
   vaultmigrate:
     description: Migrate data from another plugin
     aliases: [pvmigrate, evmigrate]
+  vaultdelete:
+    description: Delete player data
+    aliases: [pvdelete, evdelete]

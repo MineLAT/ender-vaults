@@ -134,6 +134,24 @@ public class HikariStorage implements DataStorage {
         }
     }
 
+    @Override
+    public int delete(UUID ownerUUID) {
+        int result = 0;
+        try (Connection conn = hikariDataSource.getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement(String.format(DatabaseConstants.SQL_DELETE_VAULT_BY_OWNER, vaultTable))) {
+                stmt.setString(1, ownerUUID.toString());
+                result = stmt.executeUpdate();
+            }
+            try (PreparedStatement stmt = conn.prepareStatement(String.format(DatabaseConstants.SQL_DELETE_VAULT_BY_OWNER, metadataTable))) {
+                stmt.setString(1, ownerUUID.toString());
+                stmt.executeUpdate();
+            }
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+        }
+        return result;
+    }
+
     private void createTableIfNotExist(String table, String TABLE_SQL) {
         TABLE_SQL = String.format(TABLE_SQL, table);
         try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(TABLE_SQL)) {

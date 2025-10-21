@@ -12,6 +12,7 @@ import com.github.dig.endervaults.api.vault.VaultPersister;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.command.VaultAdminCommand;
+import com.github.dig.endervaults.bukkit.command.VaultDeleteCommand;
 import com.github.dig.endervaults.bukkit.command.VaultMigrateCommand;
 import com.github.dig.endervaults.bukkit.command.VaultReloadCommand;
 import com.github.dig.endervaults.bukkit.permission.BukkitUserPermission;
@@ -195,6 +196,7 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
         getCommand("vaultreload").setExecutor(new VaultReloadCommand());
         getCommand("vaultadmin").setExecutor(new VaultAdminCommand());
         getCommand("vaultmigrate").setExecutor(new VaultMigrateCommand());
+        getCommand("vaultdelete").setExecutor(new VaultDeleteCommand());
     }
 
     private void registerMetadataConverters() {

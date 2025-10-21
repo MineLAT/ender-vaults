@@ -21,4 +21,5 @@ public interface DataStorage {
 
     void save(Vault vault) throws IOException;
 
+    int delete(UUID ownerUUID);
 }
