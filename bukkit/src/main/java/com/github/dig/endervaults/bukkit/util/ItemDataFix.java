@@ -8,6 +8,7 @@ import com.saicone.rtag.item.ItemData;
 import com.saicone.rtag.item.ItemObject;
 import com.saicone.rtag.tag.TagBase;
 import com.saicone.rtag.tag.TagCompound;
+import com.saicone.rtag.tag.TagList;
 import com.saicone.rtag.util.ChatComponent;
 import com.saicone.rtag.util.ServerInstance;
 import net.minecraft.nbt.NbtOps;
@@ -62,6 +63,18 @@ public class ItemDataFix {
                 final Number level = (Number) TagBase.getValue(entry.getValue());
                 if (level.intValue() < 1) {
                     entry.setValue(TagBase.newTag(1));
+                }
+            }
+        }
+
+        // Fix sub-items
+        final Object container = Rtag.INSTANCE.getExact(compound, "components", "minecraft:container");
+        if (container != null) {
+            for (Object element : TagList.getValue(container)) {
+                for (Map.Entry<String, Object> entry : TagCompound.getValue(element).entrySet()) {
+                    if (entry.getKey().equals("item")) {
+                        fixItem(entry.getValue());
+                    }
                 }
             }
         }
