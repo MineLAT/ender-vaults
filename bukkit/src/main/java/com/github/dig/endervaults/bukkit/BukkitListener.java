@@ -68,7 +68,7 @@ public class BukkitListener implements Listener {
         final Inventory inventory = event.getInventory();
 
         if (inventory.getHolder() instanceof BukkitVault) {
-            final BukkitVault vault = (BukkitVault) inventory;
+            final BukkitVault vault = (BukkitVault) inventory.getHolder();
             if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
                 player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
                 event.setCancelled(true);
@@ -84,7 +84,7 @@ public class BukkitListener implements Listener {
         final Inventory inventory = event.getDestination();
 
         if (inventory.getHolder() instanceof BukkitVault) {
-            final BukkitVault vault = (BukkitVault) inventory;
+            final BukkitVault vault = (BukkitVault) inventory.getHolder();
             if (isBlacklistEnabled() && getBlacklisted().contains(item.getType())) {
                 event.setCancelled(true);
                 return;
@@ -100,7 +100,7 @@ public class BukkitListener implements Listener {
         final Inventory inventory = event.getInventory();
 
         if (inventory.getHolder() instanceof BukkitVault) {
-            final BukkitVault vault = (BukkitVault) inventory;
+            final BukkitVault vault = (BukkitVault) inventory.getHolder();
             if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
                 event.setCancelled(true);
                 return;
