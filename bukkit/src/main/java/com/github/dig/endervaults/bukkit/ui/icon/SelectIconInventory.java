@@ -11,14 +11,16 @@ import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.logging.Level;
 
 @Log
-public class SelectIconInventory {
+public class SelectIconInventory implements InventoryHolder {
 
     private final EVBukkitPlugin plugin = (EVBukkitPlugin) VaultPluginProvider.getPlugin();
     private final FileConfiguration configuration = (FileConfiguration) plugin.getConfigFile().getConfiguration();
@@ -29,9 +31,15 @@ public class SelectIconInventory {
     public SelectIconInventory(Vault vault) {
         int size = configuration.getInt("selector.select-icon.rows", 3) * 9;
         this.vault = vault;
-        this.inventory = Bukkit.createInventory(null, size,
+        this.inventory = Bukkit.createInventory(this, size,
                 plugin.getLanguage().get(Lang.VAULT_SELECT_ICON_TITLE));
         init();
+    }
+
+    @NotNull
+    @Override
+    public Inventory getInventory() {
+        return inventory;
     }
 
     private void init() {
@@ -52,6 +60,9 @@ public class SelectIconInventory {
                     ItemFlag.HIDE_DESTROYS,
                     ItemFlag.values()[5], // HIDE_POTION_EFFECTS
                     ItemFlag.HIDE_PLACED_ON);
+            if (material == SelectIconConstants.REMOVE_ICON_MATERIAL) {
+                meta.setDisplayName(plugin.getLanguage().get(Lang.VAULT_SELECT_ICON_TITLE));
+            }
             item.setItemMeta(meta);
 
             int slot = inventory.firstEmpty();

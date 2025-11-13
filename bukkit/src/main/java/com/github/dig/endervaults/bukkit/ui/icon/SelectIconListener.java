@@ -34,7 +34,13 @@ public class SelectIconListener implements Listener {
                 UUID vaultID = tag.getOptional(SelectIconConstants.NBT_ICON_ID).asUuid();
                 UUID vaultOwnerUUID = tag.getOptional(SelectIconConstants.NBT_ICON_OWNER_UUID).asUuid();
 
-                registry.get(vaultOwnerUUID, vaultID).ifPresent(vault -> vault.getMetadata().put(VaultDefaultMetadata.ICON.getKey(), item.getType().toString()));
+                registry.get(vaultOwnerUUID, vaultID).ifPresent(vault -> {
+                    if (item.getType() == SelectIconConstants.REMOVE_ICON_MATERIAL) {
+                        vault.getMetadata().remove(VaultDefaultMetadata.ICON.getKey());
+                    } else {
+                        vault.getMetadata().put(VaultDefaultMetadata.ICON.getKey(), item.getType().toString());
+                    }
+                });
                 new SelectorInventory(vaultOwnerUUID, 1).launchFor(player);
             }
         }

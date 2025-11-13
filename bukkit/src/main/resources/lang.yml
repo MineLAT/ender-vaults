@@ -10,6 +10,7 @@ vault-selector-title: '&8Vault Selector'
 admin-vault-selector-title: "&8%player's Vault Selector"
 vault-title: '&8Vault #%order'
 vault-select-icon-title: '&8Select Icon'
+vault-select-icon-remove: '&cRemove Icon'
 invalid-vault-order: '&cYou need to specify a valid number.'
 player-not-loaded: '&cVault data has not been loaded yet, please wait...'
 player-loading-error: '&cVault data cannot be loaded, please contact an administrator'

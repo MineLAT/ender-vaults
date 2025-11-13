@@ -70,6 +70,7 @@ selector:
       - ARROW
       - APPLE
       - WHEAT
+      - BARRIER
   # Item designs, how the items look etc.
   template:
     # Unlocked vault item
