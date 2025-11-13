@@ -61,7 +61,7 @@ public class SelectIconInventory implements InventoryHolder {
                     ItemFlag.values()[5], // HIDE_POTION_EFFECTS
                     ItemFlag.HIDE_PLACED_ON);
             if (material == SelectIconConstants.REMOVE_ICON_MATERIAL) {
-                meta.setDisplayName(plugin.getLanguage().get(Lang.VAULT_SELECT_ICON_TITLE));
+                meta.setDisplayName(plugin.getLanguage().get(Lang.VAULT_SELECT_ICON_REMOVE));
             }
             item.setItemMeta(meta);
 
