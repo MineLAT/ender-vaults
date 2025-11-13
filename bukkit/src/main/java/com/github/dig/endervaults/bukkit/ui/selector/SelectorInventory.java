@@ -86,12 +86,12 @@ public class SelectorInventory {
                     Vault vault = vaultOptional.get();
 
                     id = vault.getId();
-                    if (vault.getMetadata().containsKey(VaultDefaultMetadata.ICON.getKey())) {
+                    if (vault.has(VaultDefaultMetadata.ICON)) {
                         try {
-                            icon = Material.valueOf((String) vault.getMetadata().get(VaultDefaultMetadata.ICON.getKey()));
+                            icon = Material.valueOf(vault.get(VaultDefaultMetadata.ICON));
                         } catch (IllegalArgumentException e) {
                             log.log(Level.SEVERE, "[EnderVaults] Attempted to load vault with non existing material.", e);
-                            vault.getMetadata().remove(VaultDefaultMetadata.ICON.getKey());
+                            vault.set(VaultDefaultMetadata.ICON, null);
                         }
                     }
 

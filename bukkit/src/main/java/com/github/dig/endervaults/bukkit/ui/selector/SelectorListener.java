@@ -49,7 +49,7 @@ public class SelectorListener implements Listener {
                     registry.get(vaultOwnerUUID, vaultID).ifPresent(vault -> {
                         BukkitVault bukkitVault = (BukkitVault) vault;
                         if (type == ClickType.LEFT) {
-                            if (permission.canUseVault(player, (int) bukkitVault.getMetadata().get(VaultDefaultMetadata.ORDER.getKey()))) {
+                            if (permission.canUseVault(player, bukkitVault.get(VaultDefaultMetadata.ORDER))) {
                                 bukkitVault.launchFor(player);
                             }
                         } else if (type == ClickType.RIGHT && configuration.getBoolean("selector.select-icon.enabled", true) && permission.canSelectIcon(player)) {

@@ -36,9 +36,9 @@ public class SelectIconListener implements Listener {
 
                 registry.get(vaultOwnerUUID, vaultID).ifPresent(vault -> {
                     if (item.getType() == SelectIconConstants.REMOVE_ICON_MATERIAL) {
-                        vault.getMetadata().remove(VaultDefaultMetadata.ICON.getKey());
+                        vault.set(VaultDefaultMetadata.ICON, null);
                     } else {
-                        vault.getMetadata().put(VaultDefaultMetadata.ICON.getKey(), item.getType().toString());
+                        vault.set(VaultDefaultMetadata.ICON, item.getType().toString());
                     }
                 });
                 new SelectorInventory(vaultOwnerUUID, 1).launchFor(player);

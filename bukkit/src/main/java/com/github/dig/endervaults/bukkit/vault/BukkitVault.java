@@ -2,6 +2,7 @@ package com.github.dig.endervaults.bukkit.vault;
 
 import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.util.ItemDataFix;
 import com.saicone.rtag.item.ItemObject;
 import com.saicone.rtag.item.ItemTagStream;
@@ -17,6 +18,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
@@ -82,6 +84,11 @@ public class BukkitVault implements Vault, VaultSerializable {
     @Override
     public Map<String, Object> getMetadata() {
         return metadata;
+    }
+
+    @Override
+    public <T> void set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
+        metadata.put(meta.getKey(), value);
     }
 
     @Override
