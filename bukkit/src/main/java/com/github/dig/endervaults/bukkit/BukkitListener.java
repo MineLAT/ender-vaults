@@ -5,7 +5,7 @@ import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.vault.VaultPersister;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorInventory;
-import com.github.dig.endervaults.bukkit.vault.BukkitVaultRegistry;
+import com.github.dig.endervaults.bukkit.vault.BukkitVault;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -16,6 +16,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -25,6 +26,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -61,45 +63,65 @@ public class BukkitListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent event) {
-        Player player = (Player) event.getWhoClicked();
+        final Player player = (Player) event.getWhoClicked();
+        final ItemStack item = event.getCurrentItem();
+        final Inventory inventory = event.getInventory();
 
-        BukkitVaultRegistry registry = (BukkitVaultRegistry) plugin.getRegistry();
-        ItemStack item = event.getCurrentItem();
-        Inventory inventory = event.getInventory();
-
-        if (inventory != null && item != null && isBlacklistEnabled()) {
-            if (!permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType()) && registry.isVault(inventory)) {
+        if (inventory.getHolder() instanceof BukkitVault) {
+            final BukkitVault vault = (BukkitVault) inventory;
+            if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
                 player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
                 event.setCancelled(true);
+                return;
             }
+            vault.setModified(true);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMove(InventoryMoveItemEvent event) {
-        BukkitVaultRegistry registry = (BukkitVaultRegistry) plugin.getRegistry();
-        ItemStack item = event.getItem();
-        Inventory inventory = event.getDestination();
+        final ItemStack item = event.getItem();
+        final Inventory inventory = event.getDestination();
 
-        if (inventory != null && item != null && isBlacklistEnabled()) {
-            if (getBlacklisted().contains(item.getType()) && registry.isVault(inventory)) {
+        if (inventory.getHolder() instanceof BukkitVault) {
+            final BukkitVault vault = (BukkitVault) inventory;
+            if (isBlacklistEnabled() && getBlacklisted().contains(item.getType())) {
                 event.setCancelled(true);
+                return;
             }
+            vault.setModified(true);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDrag(InventoryDragEvent event) {
-        Player player = (Player) event.getWhoClicked();
+        final Player player = (Player) event.getWhoClicked();
+        final ItemStack item = event.getCursor();
+        final Inventory inventory = event.getInventory();
 
-        BukkitVaultRegistry registry = (BukkitVaultRegistry) plugin.getRegistry();
-        ItemStack item = event.getCursor();
-        Inventory inventory = event.getInventory();
-
-        if (inventory != null && item != null && isBlacklistEnabled()) {
-            if (!permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType()) && registry.isVault(inventory)) {
-                player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
+        if (inventory.getHolder() instanceof BukkitVault) {
+            final BukkitVault vault = (BukkitVault) inventory;
+            if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
                 event.setCancelled(true);
+                return;
+            }
+            vault.setModified(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onClose(InventoryCloseEvent event) {
+        if (event.getInventory().getHolder() instanceof BukkitVault) {
+            final BukkitVault vault = (BukkitVault) event.getInventory().getHolder();
+            if (vault.isModified()) {
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                    try {
+                        plugin.getDataStorage().save(vault);
+                        vault.setModified(false);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
             }
         }
     }

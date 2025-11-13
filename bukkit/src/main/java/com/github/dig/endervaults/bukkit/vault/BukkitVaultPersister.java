@@ -36,11 +36,13 @@ public class BukkitVaultPersister implements VaultPersister {
     @Override
     public void save(UUID ownerUUID) {
         registry.get(ownerUUID).values().forEach(vault -> {
-            try {
-                dataStorage.save(vault);
-            } catch (IOException e) {
-                log.log(Level.SEVERE,
-                        "[EnderVaults] Unable to save vault " + vault.getId() + " for player " + ownerUUID + ".", e);
+            if (vault.isModified()) {
+                try {
+                    dataStorage.save(vault);
+                } catch (IOException e) {
+                    log.log(Level.SEVERE,
+                            "[EnderVaults] Unable to save vault " + vault.getId() + " for player " + ownerUUID + ".", e);
+                }
             }
         });
 

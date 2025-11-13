@@ -11,13 +11,14 @@ import com.saicone.rtag.tag.TagBase;
 import com.saicone.rtag.tag.TagCompound;
 import com.saicone.rtag.tag.TagList;
 import com.saicone.rtag.util.ServerInstance;
-import lombok.Getter;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,28 +27,30 @@ import java.util.*;
 import java.util.logging.Level;
 
 @Log
-public class BukkitVault implements Vault, VaultSerializable {
+public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
 
     public static final String DATA_VERSION_KEY = "DataVersion";
 
-    private UUID id;
-    private UUID ownerUUID;
-    @Getter
-    private Inventory inventory;
-    private Map<String, Object> metadata = new HashMap<>();
+    private final UUID id;
+    private final UUID ownerUUID;
+    private final Inventory inventory;
+    private final Map<String, Object> metadata;
 
-    public BukkitVault(UUID id, String title, int size, UUID ownerUUID) {
-        this.id = id;
-        this.ownerUUID = ownerUUID;
-        this.inventory = Bukkit.createInventory(new BukkitInventoryHolder(this), size, title);
+    private transient boolean modified = false;
+
+    public BukkitVault(@NotNull UUID id, @NotNull String title, int size, @NotNull UUID ownerUUID) {
+        this(id, title, size, ownerUUID, new HashMap<>());
     }
 
-    public BukkitVault(UUID id, String title, int size, UUID ownerUUID, Map<String, Object> metadata) {
-        this(id, title, size, ownerUUID);
+    public BukkitVault(@NotNull UUID id, @NotNull String title, int size, @NotNull UUID ownerUUID, @NotNull Map<String, Object> metadata) {
+        this.id = id;
+        this.ownerUUID = ownerUUID;
+        this.inventory = Bukkit.createInventory(this, size, title);
         this.metadata = metadata;
     }
 
-    public BukkitVault(UUID id, UUID ownerUUID, Inventory inventory, Map<String, Object> metadata) {
+    @ApiStatus.Internal
+    public BukkitVault(@NotNull UUID id, @NotNull UUID ownerUUID, @NotNull Inventory inventory, @NotNull Map<String, Object> metadata) {
         this.id = id;
         this.ownerUUID = ownerUUID;
         this.inventory = inventory;
@@ -55,13 +58,23 @@ public class BukkitVault implements Vault, VaultSerializable {
     }
 
     @Override
-    public UUID getId() {
+    public boolean isModified() {
+        return modified;
+    }
+
+    @Override
+    public @NotNull UUID getId() {
         return id;
     }
 
     @Override
-    public UUID getOwner() {
+    public @NotNull UUID getOwner() {
         return ownerUUID;
+    }
+
+    @Override
+    public @NotNull Inventory getInventory() {
+        return inventory;
     }
 
     @Override
@@ -82,13 +95,18 @@ public class BukkitVault implements Vault, VaultSerializable {
     }
 
     @Override
-    public Map<String, Object> getMetadata() {
+    public @NotNull Map<String, Object> getMetadata() {
         return metadata;
     }
 
     @Override
     public <T> void set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
+        setModified(true);
         metadata.put(meta.getKey(), value);
+    }
+
+    public void setModified(boolean modified) {
+        this.modified = modified;
     }
 
     @Override
@@ -149,9 +167,5 @@ public class BukkitVault implements Vault, VaultSerializable {
 
     public void launchFor(Player player) {
         player.openInventory(inventory);
-    }
-
-    public boolean compare(Inventory inventory) {
-        return this.inventory == inventory;
     }
 }

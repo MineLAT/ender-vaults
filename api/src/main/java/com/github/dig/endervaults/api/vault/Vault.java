@@ -9,14 +9,19 @@ import java.util.UUID;
 
 public interface Vault {
 
+    boolean isModified();
+
+    @NotNull
     UUID getId();
 
+    @NotNull
     UUID getOwner();
 
     int getSize();
 
     int getFreeSize();
 
+    @NotNull
     Map<String, Object> getMetadata();
 
     default boolean has(@NotNull VaultDefaultMetadata<?> meta) {

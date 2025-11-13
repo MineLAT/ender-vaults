@@ -87,6 +87,7 @@ public class ItemDataFix {
             final ItemMeta meta = item.getItemMeta();
 
             // Fix rare item json lore
+            // TODO: Use adventure library if applicable to avoid incompatibilities with shadow_color
             if (meta.hasLore()) {
                 final List<String> lore = meta.getLore();
                 boolean modified = false;
