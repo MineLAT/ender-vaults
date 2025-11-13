@@ -30,6 +30,13 @@ import java.util.logging.Level;
 public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
 
     public static final String DATA_VERSION_KEY = "DataVersion";
+    private static final Object EMPTY_ITEM = TagCompound.newTag();
+
+    static {
+        if (!ServerInstance.Release.COMPONENT) {
+            TagCompound.set(EMPTY_ITEM, "id", TagBase.newTag("minecraft:air"));
+        }
+    }
 
     private final UUID id;
     private final UUID ownerUUID;
@@ -102,7 +109,11 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
     @Override
     public <T> void set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
         setModified(true);
-        metadata.put(meta.getKey(), value);
+        if (value == null) {
+            metadata.remove(meta.getKey());
+        } else {
+            metadata.put(meta.getKey(), value);
+        }
     }
 
     public void setModified(boolean modified) {
@@ -121,7 +132,7 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
                     compound = ItemObject.save(ItemObject.asNMSCopy(item));
                     TagCompound.set(compound, DATA_VERSION_KEY, TagBase.newTag(ServerInstance.DATA_VERSION));
                 } else {
-                    compound = TagCompound.newTag();
+                    compound = EMPTY_ITEM;
                 }
                 list.add(compound);
             }
