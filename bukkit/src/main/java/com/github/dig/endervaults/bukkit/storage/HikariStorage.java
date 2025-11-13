@@ -7,6 +7,7 @@ import com.github.dig.endervaults.api.storage.Storage;
 import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.MetadataConverter;
+import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
@@ -16,6 +17,7 @@ import com.zaxxer.hikari.pool.HikariPool;
 import lombok.extern.java.Log;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -105,6 +107,27 @@ public class HikariStorage implements DataStorage {
     @Override
     public Optional<Vault> load(UUID ownerUUID, UUID id) {
         return get(id, ownerUUID);
+    }
+
+    @Override
+    public @NotNull <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) {
+        final String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_ID_BY_OWNER_AND_KEY_AND_VALUE, metadataTable);
+        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, ownerUUID.toString());
+            stmt.setString(2, meta.getKey());
+            stmt.setString(3, meta.save(value));
+
+            final ResultSet result = stmt.executeQuery();
+            if (result.next()) {
+                final UUID id = UUID.fromString(result.getString("id"));
+                return get(conn, id, ownerUUID);
+            } else {
+                return Optional.empty();
+            }
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -224,10 +247,20 @@ public class HikariStorage implements DataStorage {
     }
 
     private Optional<Vault> get(UUID id, UUID ownerUUID) {
+        try (Connection conn = hikariDataSource.getConnection()) {
+            return get(conn, id, ownerUUID);
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+            return Optional.empty();
+        }
+    }
+
+    @NotNull
+    private Optional<Vault> get(@NotNull Connection conn, @NotNull UUID id, @NotNull UUID ownerUUID) throws SQLException {
         int size;
         String contents;
         String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_BY_ID_AND_OWNER, vaultTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
 
@@ -238,9 +271,6 @@ public class HikariStorage implements DataStorage {
             } else {
                 return Optional.empty();
             }
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-            return Optional.empty();
         }
         return Optional.ofNullable(create(id, ownerUUID, size, contents));
     }

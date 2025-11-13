@@ -6,6 +6,7 @@ import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
 import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
@@ -14,6 +15,8 @@ import lombok.extern.java.Log;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,13 +59,49 @@ public class YamlStorage implements DataStorage {
 
     @Override
     public Optional<Vault> load(UUID ownerUUID, UUID id) {
-        if (!exists(ownerUUID, id)) return Optional.empty();
-        VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
+        return Optional.ofNullable(loadFile(ownerUUID, id)).map(configuration -> deserialize(ownerUUID, id, configuration));
+    }
+
+    @Override
+    public @NotNull <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) {
+        final File file = getOwnerFolder(ownerUUID);
+        if (file.isDirectory()) {
+            File[] files = file.listFiles((File f, String name) -> name.endsWith(".yml"));
+            for (File vaultFile : files) {
+                final UUID id = UUID.fromString(Files.getNameWithoutExtension(vaultFile.getName()));
+                final FileConfiguration configuration = loadFile(ownerUUID, id);
+                if (configuration == null) {
+                    continue;
+                }
+                final Object fileValue = configuration.get("metadata." + meta.getKey());
+                if (fileValue == null) {
+                    continue;
+                }
+                if (value.equals(meta.parse(fileValue))) {
+                    return Optional.of(deserialize(ownerUUID, id, configuration));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Nullable
+    private FileConfiguration loadFile(@NotNull UUID ownerUUID, @NotNull UUID id) {
+        if (!exists(ownerUUID, id)) {
+            return null;
+        }
         FileConfiguration configuration = YamlConfiguration.loadConfiguration(getVaultFile(ownerUUID, id));
 
         if (!configuration.contains("size") || !configuration.contains("contents") || !configuration.contains("metadata")) {
-            return Optional.empty();
+            return null;
         }
+
+        return configuration;
+    }
+
+    @NotNull
+    private Vault deserialize(@NotNull UUID ownerUUID, @NotNull UUID id, @NotNull FileConfiguration configuration) {
+        VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
 
         int size = configuration.getInt("size");
 
@@ -79,7 +118,7 @@ public class YamlStorage implements DataStorage {
         VaultSerializable serializable = vault;
         serializable.decode(configuration.getString("contents"));
 
-        return Optional.ofNullable(vault);
+        return vault;
     }
 
     @Override

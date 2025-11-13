@@ -5,7 +5,7 @@ import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.lang.Language;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
-import net.luckperms.api.LuckPermsProvider;
+import com.github.dig.endervaults.bukkit.util.PlayerLookup;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -30,25 +30,15 @@ public class VaultDeleteCommand implements CommandExecutor {
             if (args.length == 0) {
                 sender.sendMessage(ChatColor.RED + "Usage: /pvdelete <player>");
             } else {
-                if (args[0].length() < 32) {
-                    if (Bukkit.getPluginManager().isPluginEnabled("LuckPerms")) {
-                        LuckPermsProvider.get().getUserManager().lookupUniqueId(args[0]).whenComplete((ownerUUID, throwable) -> {
-                            if (throwable != null) {
-                                throwable.printStackTrace();
-                                return;
-                            }
-                            deleteVaults(sender, args[0], ownerUUID);
-                        });
-                    } else {
-                        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                            deleteVaults(sender, args[0], Bukkit.getOfflinePlayer(args[0]).getUniqueId());
-                        });
+                PlayerLookup.lookup(args[0]).whenComplete((target, throwable) -> {
+                    if (throwable != null) {
+                        throwable.printStackTrace();
+                        return;
                     }
-                } else {
                     Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                        deleteVaults(sender, args[0], UUID.fromString(args[0]));
+                        deleteVaults(sender, target.getName(), target.getUniqueId());
                     });
-                }
+                });
             }
         } else {
             sender.sendMessage(language.get(Lang.NO_PERMISSION));
@@ -57,11 +47,11 @@ public class VaultDeleteCommand implements CommandExecutor {
         return true;
     }
 
-    private void deleteVaults(@NotNull CommandSender sender, @NotNull String player, @NotNull UUID ownerUUID) {
+    private void deleteVaults(@NotNull CommandSender sender, @NotNull String name, @NotNull UUID ownerUUID) {
         final int amount = plugin.getDataStorage().delete(ownerUUID);
         String msg = language.get(Lang.ADMIN_VAULT_SELECTOR_TITLE, Map.of(
                 "amount", amount,
-                "player", player
+                "player", name
         ));
         sender.sendMessage(msg);
     }
