@@ -131,10 +131,16 @@ public class YamlStorage implements DataStorage {
         FileConfiguration configuration = YamlConfiguration.loadConfiguration(file);
 
         configuration.set("size", vault.getSize());
-        for (String key : vault.getMetadata().keySet()) {
-            Object value = vault.getMetadata().get(key);
+        vault.getMetadata().entrySet().removeIf(entry -> {
+            final String key = entry.getKey();
+            final Object value = entry.getValue();
+            // Clean keys that are marked to be deleted
+            if (value == Vault.NULL_VALUE) {
+                return true;
+            }
             metadataRegistry.get(key).ifPresent(converter -> configuration.set("metadata." + key, converter.from(value)));
-        }
+            return false;
+        });
 
         VaultSerializable serializable = (VaultSerializable) vault;
         configuration.set("contents", serializable.encode());

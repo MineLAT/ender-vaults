@@ -135,8 +135,14 @@ public class HikariStorage implements DataStorage {
         VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
         if (exists(vault.getOwner(), vault.getId())) {
             update(vault.getId(), vault.getOwner(), vault.getSize(), ((VaultSerializable) vault).encode());
-            for (String key : vault.getMetadata().keySet()) {
-                Object value = vault.getMetadata().get(key);
+            vault.getMetadata().entrySet().removeIf(entry -> {
+                final String key = entry.getKey();
+                final Object value = entry.getValue();
+                // Clean keys that are marked to be deleted
+                if (value == Vault.NULL_VALUE) {
+                    delete(vault.getId(), key);
+                    return true;
+                }
                 metadataRegistry.get(key)
                         .ifPresent(converter -> {
                             if (exists(vault.getId(), vault.getOwner(), key)) {
@@ -145,7 +151,8 @@ public class HikariStorage implements DataStorage {
                                 insert(vault.getId(), vault.getOwner(), key, converter.from(value));
                             }
                         });
-            }
+                return false;
+            });
         } else {
             String contents = ((VaultSerializable) vault).encode();
             insert(vault.getId(), vault.getOwner(), vault.getSize(), contents);
@@ -240,6 +247,17 @@ public class HikariStorage implements DataStorage {
             stmt.setString(2, id.toString());
             stmt.setString(3, ownerUUID.toString());
             stmt.setString(4, key);
+            stmt.executeUpdate();
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+        }
+    }
+
+    private void delete(@NotNull UUID id, @NotNull String key) {
+        String sql = String.format(DatabaseConstants.SQL_DELETE_VAULT_METADATA_BY_ID_AND_KEY, metadataTable);
+        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id.toString());
+            stmt.setString(2, key);
             stmt.executeUpdate();
         } catch (SQLException ex) {
             log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);

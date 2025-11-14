@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public interface Vault {
 
+    Object NULL_VALUE = new Object();
+
     boolean isModified();
 
     @NotNull
@@ -25,13 +27,13 @@ public interface Vault {
     Map<String, Object> getMetadata();
 
     default boolean has(@NotNull VaultDefaultMetadata<?> meta) {
-        return getMetadata().containsKey(meta.getKey());
+        return getMetadata().getOrDefault(meta.getKey(), NULL_VALUE) != NULL_VALUE;
     }
 
     @Nullable
     default <T> T get(@NotNull VaultDefaultMetadata<T> meta) {
-        final Object value = getMetadata().get(meta.getKey());
-        return value == null ? null : meta.parse(value);
+        final Object value = getMetadata().getOrDefault(meta.getKey(), NULL_VALUE);
+        return value == NULL_VALUE ? null : meta.parse(value);
     }
 
     <T> void set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value);

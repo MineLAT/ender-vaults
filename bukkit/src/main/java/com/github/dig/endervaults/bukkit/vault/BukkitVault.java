@@ -110,7 +110,7 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
     public <T> void set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
         setModified(true);
         if (value == null) {
-            metadata.remove(meta.getKey());
+            metadata.put(meta.getKey(), Vault.NULL_VALUE);
         } else {
             metadata.put(meta.getKey(), value);
         }
