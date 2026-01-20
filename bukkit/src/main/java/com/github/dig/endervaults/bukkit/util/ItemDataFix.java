@@ -1,6 +1,5 @@
 package com.github.dig.endervaults.bukkit.util;
 
-import com.github.dig.endervaults.bukkit.vault.BukkitVault;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Dynamic;
 import com.saicone.rtag.Rtag;
@@ -10,7 +9,7 @@ import com.saicone.rtag.tag.TagBase;
 import com.saicone.rtag.tag.TagCompound;
 import com.saicone.rtag.tag.TagList;
 import com.saicone.rtag.util.ChatComponent;
-import com.saicone.rtag.util.ServerInstance;
+import com.saicone.rtag.util.MC;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
@@ -30,30 +29,10 @@ public class ItemDataFix {
     ItemDataFix() {
     }
 
-    private static int itemVersion(@NotNull Object compound) {
-        final Object version = TagBase.getValue(TagCompound.get(compound, BukkitVault.DATA_VERSION_KEY));
-        if (version instanceof Number) {
-            return ((Number) version).intValue();
-        }
-        final Float itemVersion = ItemData.getItemVersion(compound);
-        if (itemVersion == null) {
-            throw new IllegalArgumentException("Cannot lookup item version from = " + compound);
-        }
-        return dataVersion(itemVersion);
-    }
-
-    private static int dataVersion(float number) {
-        int integralPart = (int) number;
-        int decimalPart = (int) (number - integralPart);
-
-        String resultStr = String.format("1%02d%02d", integralPart, decimalPart);
-        return ServerInstance.dataVersion(Integer.parseInt(resultStr));
-    }
-
     private static Object fixItem(@NotNull Object compound) {
         // Fix enchantments with invalid levels
         final Object enchantments;
-        if (ServerInstance.VERSION >= 21.04f) { // 1.21.5
+        if (MC.version().isNewerThanOrEquals(MC.V_1_21_5)) {
             enchantments = Rtag.INSTANCE.getExact(compound, "components", "minecraft:enchantments");
         } else {
             enchantments = Rtag.INSTANCE.getExact(compound, "components", "minecraft:enchantments", "levels");
@@ -110,9 +89,9 @@ public class ItemDataFix {
     }
 
     public static ItemStack decodeItem(@NotNull Object compound) {
-        final int version = itemVersion(compound);
+        final MC version = ItemData.lookupVersion(compound);
         // Update item version
-        compound = updateItem(compound, version, ServerInstance.DATA_VERSION);
+        compound = updateItem(compound, version, MC.version());
         // Fix result compound
         compound = fixItem(compound);
 
@@ -126,10 +105,10 @@ public class ItemDataFix {
         return fixItem(ItemObject.asCraftMirror(item));
     }
 
-    public static Object updateItem(@NotNull Object compound, int version, int newVersion) {
+    public static Object updateItem(@NotNull Object compound, @NotNull MC version, @NotNull MC newVersion) {
         if (version == newVersion) {
             return compound;
         }
-        return MinecraftServer.getServer().getFixerUpper().update(References.ITEM_STACK, new Dynamic<>(NbtOps.INSTANCE, (Tag) compound), version, newVersion).getValue();
+        return MinecraftServer.getServer().getFixerUpper().update(References.ITEM_STACK, new Dynamic<>(NbtOps.INSTANCE, (Tag) compound), version.dataVersion().get(), newVersion.dataVersion().get()).getValue();
     }
 }

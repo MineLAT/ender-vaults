@@ -4,12 +4,14 @@ import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.util.ItemDataFix;
+import com.saicone.rtag.item.ItemData;
 import com.saicone.rtag.item.ItemObject;
 import com.saicone.rtag.item.ItemTagStream;
 import com.saicone.rtag.stream.TStreamTools;
 import com.saicone.rtag.tag.TagBase;
 import com.saicone.rtag.tag.TagCompound;
 import com.saicone.rtag.tag.TagList;
+import com.saicone.rtag.util.MC;
 import com.saicone.rtag.util.ServerInstance;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
@@ -29,11 +31,10 @@ import java.util.logging.Level;
 @Log
 public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
 
-    public static final String DATA_VERSION_KEY = "DataVersion";
     private static final Object EMPTY_ITEM = TagCompound.newTag();
 
     static {
-        if (!ServerInstance.Release.COMPONENT) {
+        if (!MC.version().isComponent()) {
             TagCompound.set(EMPTY_ITEM, "id", TagBase.newTag("minecraft:air"));
         }
     }
@@ -130,7 +131,7 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
                 final Object compound;
                 if (item != null && item.getType() != Material.AIR) {
                     compound = ItemObject.save(ItemObject.asNMSCopy(item));
-                    TagCompound.set(compound, DATA_VERSION_KEY, TagBase.newTag(ServerInstance.DATA_VERSION));
+                    TagCompound.set(compound, ItemData.VERSION_KEY, TagBase.newTag(MC.version().dataVersion()));
                 } else {
                     compound = EMPTY_ITEM;
                 }
@@ -162,7 +163,7 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
                     continue;
                 }
 
-                if (ServerInstance.Release.COMPONENT && ServerInstance.Type.MOJANG_MAPPED) {
+                if (MC.version().isComponent() && ServerInstance.Type.MOJANG_MAPPED) {
                     items[i] = ItemDataFix.decodeItem(compound);
                 } else {
                     items[i] = ItemTagStream.INSTANCE.fromCompound(compound);

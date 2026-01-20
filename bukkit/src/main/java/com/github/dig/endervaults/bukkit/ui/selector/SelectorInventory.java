@@ -9,7 +9,7 @@ import com.github.dig.endervaults.api.vault.VaultRegistry;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import com.saicone.rtag.RtagItem;
-import com.saicone.rtag.util.ServerInstance;
+import com.saicone.rtag.util.MC;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -130,7 +130,7 @@ public class SelectorInventory {
         ItemStack item = new ItemStack(material, 1);
 
         // Use old material data method (< 1.13)
-        if (ServerInstance.Release.LEGACY && data > 0 && icon == null) {
+        if (MC.version().isLegacy() && data > 0 && icon == null) {
             item.setDurability((byte) data);
         }
 
@@ -170,7 +170,7 @@ public class SelectorInventory {
     private Material getGlass(int filled, int total) {
         double percent = ((double) filled / (double) total) * 100;
 
-        if (ServerInstance.Release.LEGACY) {
+        if (MC.version().isLegacy()) {
             return Material.valueOf("STAINED_GLASS_PANE");
         } else if (percent >= 100) {
             return Material.RED_STAINED_GLASS_PANE;
@@ -212,7 +212,7 @@ public class SelectorInventory {
                 break;
             case PANE_BY_FILL:
             default:
-                material = ServerInstance.Release.LEGACY ? Material.valueOf("STAINED_GLASS_PANE") : Material.GRAY_STAINED_GLASS_PANE;
+                material = MC.version().isLegacy() ? Material.valueOf("STAINED_GLASS_PANE") : Material.GRAY_STAINED_GLASS_PANE;
                 data = 7;
                 break;
         }
@@ -220,7 +220,7 @@ public class SelectorInventory {
         ItemStack item = new ItemStack(material, 1);
 
         // Use old material data method (< 1.13)
-        if (ServerInstance.Release.LEGACY && data > 0) {
+        if (MC.version().isLegacy() && data > 0) {
             item.setDurability((byte) data);
         }
 

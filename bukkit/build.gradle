@@ -13,17 +13,17 @@ repositories {
 dependencies {
     implementation project(':api')
 
-    compileOnly('org.spigotmc:spigot:1.21.10-R0.1-SNAPSHOT:remapped-mojang') {
+    compileOnly('org.spigotmc:spigot:1.21.11-R0.1-SNAPSHOT:remapped-mojang') {
         exclude group: 'com.mojang'
     }
-    compileOnly('com.github.Rubenicos:DataFixerUpper:8.0') { transitive = false }
+    compileOnly('com.github.Rubenicos:DataFixerUpper:9.0') { transitive = false }
 
     compileOnly 'net.luckperms:api:5.4'
 
     implementation 'com.zaxxer:HikariCP:7.0.2'
-    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.6'
-    implementation 'com.saicone.rtag:rtag:1.5.13'
-    implementation 'com.saicone.rtag:rtag-item:1.5.13'
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.7'
+    implementation 'com.saicone.rtag:rtag:1.5.14'
+    implementation 'com.saicone.rtag:rtag-item:1.5.14'
 }
 
 processResources {
