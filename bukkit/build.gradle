@@ -1,13 +1,13 @@
 plugins {
-    id 'com.gradleup.shadow' version '9.2.2'
+    id 'com.gradleup.shadow' version '9.3.1'
 }
 
 repositories {
-    maven { url 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-    maven { url 'https://oss.sonatype.org/content/repositories/central' }
-    maven { url 'https://repo.codemc.org/repository/nms/' }
-    maven { url 'https://jitpack.io' }
+    maven { url = uri('https://hub.spigotmc.org/nexus/content/repositories/snapshots/') }
+    maven { url = uri('https://oss.sonatype.org/content/repositories/snapshots') }
+    maven { url = uri('https://oss.sonatype.org/content/repositories/central') }
+    maven { url = uri('https://repo.codemc.org/repository/nms/') }
+    maven { url = uri('https://jitpack.io') }
 }
 
 dependencies {
