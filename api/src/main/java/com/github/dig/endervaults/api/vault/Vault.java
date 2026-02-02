@@ -13,6 +13,8 @@ public interface Vault {
 
     boolean isModified();
 
+    boolean isContentLoaded();
+
     @NotNull
     UUID getId();
 
@@ -36,6 +38,7 @@ public interface Vault {
         return value == NULL_VALUE ? null : meta.parse(value);
     }
 
-    <T> void set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value);
+    @Nullable
+    <T> Object set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value);
 
 }

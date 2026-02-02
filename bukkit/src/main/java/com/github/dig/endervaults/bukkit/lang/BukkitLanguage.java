@@ -42,7 +42,7 @@ public class BukkitLanguage implements Language {
 
         for (String key : placeholders.keySet()) {
             Object value = placeholders.get(key);
-            text = text.replaceAll("%" + key, String.valueOf(value));
+            text = text.replace("%" + key, String.valueOf(value));
         }
         return ChatColor.translateAlternateColorCodes('&', text);
     }

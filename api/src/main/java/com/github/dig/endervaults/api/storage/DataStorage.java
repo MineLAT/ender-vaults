@@ -1,5 +1,6 @@
 package com.github.dig.endervaults.api.storage;
 
+import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import org.jetbrains.annotations.NotNull;
@@ -23,6 +24,10 @@ public interface DataStorage {
 
     @NotNull
     <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value);
+
+    default boolean loadContents(@NotNull Vault vault, @NotNull VaultSerializable serializable) {
+        throw new IllegalStateException("The current database type doesn't support vault content loading");
+    }
 
     void save(Vault vault) throws IOException;
 

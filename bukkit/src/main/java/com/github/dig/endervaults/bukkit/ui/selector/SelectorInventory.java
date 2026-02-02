@@ -75,9 +75,9 @@ public class SelectorInventory {
             int order = page > 1 ? ((page - 1) * inventory.getSize()) + i : ((page - 1) * inventory.getSize()) + (i + 1);
             if (target != null && permission.canUseVault(target, order)) {
                 UUID id = null;
-                Material icon = null;
-
                 int size = configuration.getInt("vault.default-rows", 3) * 9;
+
+                Material icon = null;
                 int free = 0;
                 int filled = 0;
 
@@ -86,6 +86,13 @@ public class SelectorInventory {
                     Vault vault = vaultOptional.get();
 
                     id = vault.getId();
+                    size = vault.getSize();
+
+                    if (!vault.isContentLoaded() && vault.get(VaultDefaultMetadata.FREE_SIZE) == null) {
+                        inventory.setItem(i, createUnloadItem(id, order, size));
+                        continue;
+                    }
+
                     if (vault.has(VaultDefaultMetadata.ICON)) {
                         try {
                             icon = Material.valueOf(vault.get(VaultDefaultMetadata.ICON));
@@ -94,8 +101,6 @@ public class SelectorInventory {
                             vault.set(VaultDefaultMetadata.ICON, null);
                         }
                     }
-
-                    size = vault.getSize();
                     free = vault.getFreeSize();
                     filled = size - free;
                 }
@@ -105,6 +110,42 @@ public class SelectorInventory {
                 inventory.setItem(i, locked);
             }
         }
+    }
+
+    private ItemStack createUnloadItem(@Nullable UUID id, int order, int size) {
+        FileConfiguration configuration = plugin.getConfigFile().getConfiguration();
+
+        ItemStack item = new ItemStack(Material.BARRIER, 1);
+
+        ItemMeta meta = item.getItemMeta();
+
+        String title = configuration.getString("selector.template.unloaded.title")
+                .replace("%order", String.valueOf(order));
+        meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', title));
+
+        meta.setLore(configuration.getStringList("selector.template.unloaded.lore")
+                .stream()
+                .map(s -> s.replace("%total_slots", String.valueOf(size)))
+                .map(s -> ChatColor.translateAlternateColorCodes('&', s))
+                .collect(Collectors.toList()));
+
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES,
+                ItemFlag.HIDE_UNBREAKABLE,
+                ItemFlag.HIDE_ENCHANTS,
+                ItemFlag.HIDE_DESTROYS,
+                ItemFlag.values()[5], // HIDE_POTION_EFFECTS
+                ItemFlag.HIDE_PLACED_ON);
+
+        item.setItemMeta(meta);
+
+        return RtagItem.edit(item, tag -> {
+            tag.set(true, SelectorConstants.NBT_VAULT_ITEM);
+            if (id != null) {
+                tag.set(id, SelectorConstants.NBT_VAULT_ID);
+            }
+            tag.set(ownerUUID, SelectorConstants.NBT_VAULT_OWNER_UUID);
+            tag.set(order, SelectorConstants.NBT_VAULT_ORDER);
+        });
     }
 
     private ItemStack createUnlockedItem(@Nullable UUID id, int order, int size, int free, int filled, @Nullable Material icon) {
@@ -137,14 +178,14 @@ public class SelectorInventory {
         ItemMeta meta = item.getItemMeta();
 
         String title = configuration.getString("selector.template.unlocked.title")
-                .replaceAll("%order", String.valueOf(order));
+                .replace("%order", String.valueOf(order));
         meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', title));
 
         meta.setLore(configuration.getStringList("selector.template.unlocked.lore")
                 .stream()
-                .map(s -> s.replaceAll("%filled_slots", String.valueOf(filled)))
-                .map(s -> s.replaceAll("%total_slots", String.valueOf(size)))
-                .map(s -> s.replaceAll("%free_slots", String.valueOf(free)))
+                .map(s -> s.replace("%filled_slots", String.valueOf(filled)))
+                .map(s -> s.replace("%total_slots", String.valueOf(size)))
+                .map(s -> s.replace("%free_slots", String.valueOf(free)))
                 .map(s -> ChatColor.translateAlternateColorCodes('&', s))
                 .collect(Collectors.toList()));
 

@@ -131,10 +131,30 @@ public class HikariStorage implements DataStorage {
     }
 
     @Override
+    public boolean loadContents(@NotNull Vault vault, @NotNull VaultSerializable serializable) {
+        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_CONTENTS_BY_ID, vaultTable);
+        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, vault.getId().toString());
+
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String contents = rs.getString("contents");
+                serializable.decode(contents);
+            }
+            return true;
+        } catch (SQLException ex) {
+            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
+        }
+        return false;
+    }
+
+    @Override
     public void save(Vault vault) {
         VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
         if (exists(vault.getOwner(), vault.getId())) {
-            update(vault.getId(), vault.getOwner(), vault.getSize(), ((VaultSerializable) vault).encode());
+            if (vault.isContentLoaded()) {
+                update(vault.getId(), vault.getOwner(), vault.getSize(), ((VaultSerializable) vault).encode());
+            }
             vault.getMetadata().entrySet().removeIf(entry -> {
                 final String key = entry.getKey();
                 final Object value = entry.getValue();
@@ -154,8 +174,10 @@ public class HikariStorage implements DataStorage {
                 return false;
             });
         } else {
-            String contents = ((VaultSerializable) vault).encode();
-            insert(vault.getId(), vault.getOwner(), vault.getSize(), contents);
+            if (vault.isContentLoaded()) {
+                String contents = ((VaultSerializable) vault).encode();
+                insert(vault.getId(), vault.getOwner(), vault.getSize(), contents);
+            }
             for (String key : vault.getMetadata().keySet()) {
                 Object value = vault.getMetadata().get(key);
                 metadataRegistry.get(key)
@@ -191,14 +213,10 @@ public class HikariStorage implements DataStorage {
         }
     }
 
-    private Vault create(UUID id, UUID ownerUUID, int size, String contents) {
+    private BukkitVault create(UUID id, UUID ownerUUID, int size) {
         Map<String, Object> metadata = getMetadata(ownerUUID, id);
         String title = plugin.getLanguage().get(Lang.VAULT_TITLE, metadata);
-        BukkitVault vault = new BukkitVault(id, title, size, ownerUUID, metadata);
-
-        VaultSerializable serializable = vault;
-        serializable.decode(contents);
-        return vault;
+        return new BukkitVault(id, title, size, ownerUUID, metadata).setContentLoaded(false);
     }
 
     private void insert(UUID id, UUID ownerUUID, int size, String contents) {
@@ -290,7 +308,11 @@ public class HikariStorage implements DataStorage {
                 return Optional.empty();
             }
         }
-        return Optional.ofNullable(create(id, ownerUUID, size, contents));
+        final BukkitVault result = create(id, ownerUUID, size);
+        if (result != null) {
+            result.decode(contents);
+        }
+        return Optional.ofNullable(result);
     }
 
     private List<Vault> get(UUID ownerUUID) {
@@ -303,8 +325,7 @@ public class HikariStorage implements DataStorage {
             while (rs.next()) {
                 UUID id = UUID.fromString(rs.getString("id"));
                 int size = rs.getInt("size");
-                String contents = rs.getString("contents");
-                vaults.add(create(id, ownerUUID, size, contents));
+                vaults.add(create(id, ownerUUID, size));
             }
         } catch (SQLException ex) {
             log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);

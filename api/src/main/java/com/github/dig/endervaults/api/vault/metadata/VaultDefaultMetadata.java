@@ -20,6 +20,16 @@ public class VaultDefaultMetadata<T> {
             return String.valueOf(object);
         }
     };
+    public static final VaultDefaultMetadata<Integer> FREE_SIZE = new VaultDefaultMetadata<>(Integer.class, "free_size") {
+        @Override
+        public @NotNull Integer parse(@NotNull Object object) {
+            if (object instanceof Number) {
+                return ((Number) object).intValue();
+            } else {
+                return Integer.parseInt(String.valueOf(object));
+            }
+        }
+    };
 
     private final @NotNull Class<T> type;
     private final @NotNull String key;

@@ -2,27 +2,39 @@ package com.github.dig.endervaults.bukkit.vault;
 
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
 import org.javatuples.Pair;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 public class BukkitVaultRegistry implements VaultRegistry {
 
-    private final Table<UUID, UUID, Vault> vaults;
+    private final Map<UUID, Map<UUID, Vault>> vaults;
+
     public BukkitVaultRegistry() {
-        this.vaults = HashBasedTable.create();
+        this.vaults = new HashMap<>();
     }
 
     @Override
     public Optional<Vault> get(UUID ownerUUID, UUID id) {
-        return Optional.ofNullable(vaults.get(ownerUUID, id));
+        final Map<UUID, Vault> map = vaults.get(ownerUUID);
+        if (map == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(map.get(id));
     }
 
     @Override
     public Map<UUID, Vault> get(UUID ownerUUID) {
-        return vaults.row(ownerUUID);
+        Map<UUID, Vault> map = vaults.get(ownerUUID);
+        if (map == null) {
+            map = new HashMap<>();
+            vaults.put(ownerUUID, map);
+        }
+        return map;
     }
 
     @Override
@@ -38,16 +50,24 @@ public class BukkitVaultRegistry implements VaultRegistry {
 
     @Override
     public Set<UUID> getAllOwners() {
-        return vaults.rowKeySet();
+        return vaults.keySet();
     }
 
     @Override
     public synchronized void register(UUID ownerUUID, Vault vault) {
-        vaults.put(ownerUUID, vault.getId(), vault);
+        Map<UUID, Vault> map = vaults.get(ownerUUID);
+        if (map == null) {
+            map = new HashMap<>();
+            vaults.put(ownerUUID, map);
+        }
+        map.put(vault.getId(), vault);
     }
 
     @Override
     public synchronized void clean(UUID ownerUUID) {
-        vaults.row(ownerUUID).clear();
+        final Map<UUID, Vault> map = vaults.remove(ownerUUID);
+        if (map != null) {
+            map.clear();
+        }
     }
 }

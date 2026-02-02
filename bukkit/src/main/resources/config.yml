@@ -93,6 +93,13 @@ selector:
       lore:
         - '&7Unlock by donating at'
         - '&7store.example.com'
+    # Unloaded vault item
+    unloaded:
+      title: '&5Vault #%order'
+      lore:
+        - '&7This vault is not yet loaded'
+        - ' '
+        - '&aLeft Click to load and open.'
 
 # Configuration for each vault
 vault:

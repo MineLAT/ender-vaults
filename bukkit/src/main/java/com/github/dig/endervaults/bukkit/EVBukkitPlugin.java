@@ -105,7 +105,7 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
 
         setupManagers();
 
-        registerCommands();
+        Bukkit.getScheduler().runTaskLater(this, () -> registerCommands(), 200L);
         registerMetadataConverters();
         registerListeners();
     }
@@ -187,6 +187,7 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
     private void registerMetadataConverters() {
         metadataRegistry.register(VaultDefaultMetadata.ORDER.getKey(), new IntegerMetadataConverter());
         metadataRegistry.register(VaultDefaultMetadata.ICON.getKey(), new StringMetadataConverter());
+        metadataRegistry.register(VaultDefaultMetadata.FREE_SIZE.getKey(), new IntegerMetadataConverter());
     }
 
     private void registerListeners() {

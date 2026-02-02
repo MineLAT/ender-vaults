@@ -89,6 +89,7 @@ public class SelectorListener implements Listener {
         if (item != null && item.getType() != Material.AIR) {
             if (RtagItem.of(item).hasTag(SelectorConstants.NBT_VAULT_ITEM)) {
                 event.setCancelled(true);
+                event.setItem(new ItemStack(Material.AIR));
             }
         }
     }

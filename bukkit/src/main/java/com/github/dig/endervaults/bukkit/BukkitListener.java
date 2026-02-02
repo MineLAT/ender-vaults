@@ -4,6 +4,7 @@ import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.vault.VaultPersister;
+import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorInventory;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
 import org.bukkit.Bukkit;
@@ -57,6 +58,7 @@ public class BukkitListener implements Listener {
         if (pendingLoadMap.containsKey(player.getUniqueId())) {
             pendingLoadMap.remove(player.getUniqueId()).cancel();
         }
+        BukkitVault.stopWaiting(player);
         Bukkit.getScheduler().runTaskAsynchronously(plugin,
                 () -> persister.save(player.getUniqueId()));
     }
@@ -113,6 +115,7 @@ public class BukkitListener implements Listener {
     public void onClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof BukkitVault) {
             final BukkitVault vault = (BukkitVault) event.getInventory().getHolder();
+            vault.set(VaultDefaultMetadata.FREE_SIZE, vault.getFreeSize());
             if (vault.isModified()) {
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                     try {
