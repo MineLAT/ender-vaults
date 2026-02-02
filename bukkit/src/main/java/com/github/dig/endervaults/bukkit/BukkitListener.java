@@ -138,7 +138,7 @@ public class BukkitListener implements Listener {
             event.setCancelled(true);
             final VaultPersister.State state = plugin.getPersister().getState(player.getUniqueId());
             if (state == VaultPersister.State.UNKNOWN) {
-                player.sendMessage("§4Your vaults state is unknown, try again or contact an administrator");
+                player.sendMessage(plugin.getLanguage().get(Lang.INVALID_VAULT_STATE));
                 return;
             } else if (state == VaultPersister.State.LOADING) {
                 player.sendMessage(plugin.getLanguage().get(Lang.PLAYER_NOT_LOADED));

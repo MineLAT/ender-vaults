@@ -38,7 +38,7 @@ public class VaultCommand implements CommandExecutor {
 
             final VaultPersister.State state = plugin.getPersister().getState(player.getUniqueId());
             if (state == VaultPersister.State.UNKNOWN) {
-                sender.sendMessage("§4Your vaults state is unknown, try again or contact an administrator");
+                sender.sendMessage(plugin.getLanguage().get(Lang.INVALID_VAULT_STATE));
                 return true;
             } else if (state == VaultPersister.State.LOADING) {
                 sender.sendMessage(language.get(Lang.PLAYER_NOT_LOADED));
