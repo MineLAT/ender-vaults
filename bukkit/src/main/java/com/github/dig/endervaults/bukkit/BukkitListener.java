@@ -17,13 +17,16 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
@@ -65,10 +68,37 @@ public class BukkitListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
-                player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
-                event.setCancelled(true);
-                return;
+
+            if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player)) {
+                final Set<Material> blacklist = getBlacklisted();
+                if (event.getSlotType() == InventoryType.SlotType.CONTAINER || event.getSlotType() == InventoryType.SlotType.QUICKBAR) {
+                    if (!event.isShiftClick()) {
+                        return;
+                    }
+
+                    if (blacklist.contains(item.getType())) {
+                        player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
+                        event.setCancelled(true);
+                        return;
+                    }
+                } else if (event.getRawSlot() < vault.getSize()) {
+                    final ItemStack swapped;
+                    if (event.getAction() == InventoryAction.HOTBAR_SWAP || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD) {
+                        if (event.getHotbarButton() == -1) {
+                            swapped = player.getInventory().getItem(EquipmentSlot.OFF_HAND);
+                        } else {
+                            swapped = inventory.getItem(event.getHotbarButton());
+                        }
+                    } else {
+                        swapped = event.getCursor();
+                    }
+
+                    if (swapped != null && blacklist.contains(swapped.getType())) {
+                        player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
             }
             vault.setContentState(VaultState.MODIFIED);
         }
