@@ -1,11 +1,9 @@
 package com.github.dig.endervaults.api.storage;
 
-import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,20 +14,20 @@ public interface DataStorage {
 
     void close();
 
-    boolean exists(UUID ownerUUID, UUID id);
+    boolean exists(UUID ownerUUID, UUID id) throws Throwable;
 
-    List<Vault> load(UUID ownerUUID);
+    List<Vault> load(UUID ownerUUID) throws Throwable;
 
-    Optional<Vault> load(UUID ownerUUID, UUID id);
+    Optional<Vault> load(UUID ownerUUID, UUID id) throws Throwable;
 
     @NotNull
-    <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value);
+    <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) throws Throwable;
 
-    default boolean loadContents(@NotNull Vault vault, @NotNull VaultSerializable serializable) {
+    default void loadContents(@NotNull Vault vault) throws Throwable {
         throw new IllegalStateException("The current database type doesn't support vault content loading");
     }
 
-    void save(Vault vault) throws IOException;
+    void save(Vault vault) throws Throwable;
 
-    int delete(UUID ownerUUID);
+    int delete(UUID ownerUUID) throws Throwable;
 }

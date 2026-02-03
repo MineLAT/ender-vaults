@@ -84,9 +84,13 @@ public class VaultAdminCommand implements CommandExecutor {
 
         final Optional<Vault> result;
         if (target.isOnline()) {
-            result = plugin.getRegistry().getByMetadata(target.getUniqueId(), VaultDefaultMetadata.ORDER.getKey(), vaultOrder);
+            result = plugin.getRegistry().getHolder(target.getUniqueId()).getVault(vaultOrder);
         } else {
-            result = plugin.getDataStorage().load(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder);
+            try {
+                result = plugin.getDataStorage().load(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder);
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
         }
         result.ifPresent(vault -> {
             if (Bukkit.isPrimaryThread()) {

@@ -22,8 +22,6 @@ subprojects {
         compileOnly 'org.projectlombok:lombok:1.18.42'
         annotationProcessor 'org.projectlombok:lombok:1.18.42'
 
-        implementation 'org.javatuples:javatuples:1.2'
-
         compileOnly 'org.jetbrains:annotations:26.0.2'
     }
 

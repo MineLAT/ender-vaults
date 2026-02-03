@@ -34,7 +34,7 @@ public class SelectIconListener implements Listener {
                 UUID vaultID = tag.getOptional(SelectIconConstants.NBT_ICON_ID).asUuid();
                 UUID vaultOwnerUUID = tag.getOptional(SelectIconConstants.NBT_ICON_OWNER_UUID).asUuid();
 
-                registry.get(vaultOwnerUUID, vaultID).ifPresent(vault -> {
+                registry.getHolder(vaultOwnerUUID).getVault(vaultID).ifPresent(vault -> {
                     if (item.getType() == SelectIconConstants.REMOVE_ICON_MATERIAL) {
                         vault.set(VaultDefaultMetadata.ICON, null);
                     } else {

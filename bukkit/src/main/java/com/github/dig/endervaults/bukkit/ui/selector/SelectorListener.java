@@ -3,11 +3,11 @@ package com.github.dig.endervaults.bukkit.ui.selector;
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.VaultHolder;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.ui.icon.SelectIconInventory;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
-import com.github.dig.endervaults.bukkit.vault.BukkitVaultFactory;
 import com.saicone.rtag.RtagItem;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -21,7 +21,6 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.HashMap;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,7 +45,7 @@ public class SelectorListener implements Listener {
                     UUID vaultID = tag.getOptional(SelectorConstants.NBT_VAULT_ID).asUuid();
                     UUID vaultOwnerUUID = tag.getOptional(SelectorConstants.NBT_VAULT_OWNER_UUID).asUuid();
 
-                    registry.get(vaultOwnerUUID, vaultID).ifPresent(vault -> {
+                    registry.getHolder(vaultOwnerUUID).getVault(vaultID).ifPresent(vault -> {
                         BukkitVault bukkitVault = (BukkitVault) vault;
                         if (type == ClickType.LEFT) {
                             if (permission.canUseVault(player, bukkitVault.get(VaultDefaultMetadata.ORDER))) {
@@ -64,17 +63,15 @@ public class SelectorListener implements Listener {
                         return;
                     }
 
-                    Optional<Vault> vaultOptional = registry
-                            .getByMetadata(vaultOwnerUUID, VaultDefaultMetadata.ORDER.getKey(), orderValue);
+                    final VaultHolder holder = registry.getHolder(vaultOwnerUUID);
+                    Optional<Vault> vaultOptional = holder.getVault(orderValue);
 
                     BukkitVault vault;
                     if (vaultOptional.isPresent()) {
                         vault = (BukkitVault) vaultOptional.get();
                     } else {
-                        vault = (BukkitVault) BukkitVaultFactory.create(vaultOwnerUUID, new HashMap<String, Object>(){{
-                            put(VaultDefaultMetadata.ORDER.getKey(), orderValue);
-                        }});
-                        registry.register(vaultOwnerUUID, vault);
+                        vault = BukkitVault.create(vaultOwnerUUID, orderValue);
+                        holder.compute(vault);
                     }
 
                     vault.launchFor(player);

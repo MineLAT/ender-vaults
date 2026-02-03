@@ -84,8 +84,8 @@ public class PVXMigrator implements Migrator {
                         try {
                             dataStorage.save(vault);
                             count++;
-                        } catch (IOException e) {
-                            log.log(Level.SEVERE, "[EnderVaults] Unable to save migrated vault. (" + ownerUUID.toString() + ", " + vaultName + ")", e);
+                        } catch (Throwable t) {
+                            log.log(Level.SEVERE, "[EnderVaults] Unable to save migrated vault. (" + ownerUUID.toString() + ", " + vaultName + ")", t);
                         }
                     }
                 }

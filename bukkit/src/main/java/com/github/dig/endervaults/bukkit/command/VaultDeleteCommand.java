@@ -48,7 +48,12 @@ public class VaultDeleteCommand implements CommandExecutor {
     }
 
     private void deleteVaults(@NotNull CommandSender sender, @NotNull String name, @NotNull UUID ownerUUID) {
-        final int amount = plugin.getDataStorage().delete(ownerUUID);
+        final int amount;
+        try {
+            amount = plugin.getDataStorage().delete(ownerUUID);
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
         String msg = language.get(Lang.ADMIN_VAULT_SELECTOR_TITLE, Map.of(
                 "amount", amount,
                 "player", name

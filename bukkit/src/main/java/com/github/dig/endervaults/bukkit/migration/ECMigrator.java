@@ -3,11 +3,9 @@ package com.github.dig.endervaults.bukkit.migration;
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.migration.Migrator;
 import com.github.dig.endervaults.api.storage.DataStorage;
-import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
-import com.github.dig.endervaults.bukkit.vault.BukkitVaultFactory;
 import com.google.common.io.Files;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
@@ -113,8 +111,8 @@ public class ECMigrator implements Migrator {
                         try {
                             dataStorage.save(vault);
                             count++;
-                        } catch (IOException e) {
-                            log.log(Level.SEVERE, "[EnderVaults] Unable to save migrated vault. (" + ownerUUID.toString() + ", " + vaultName + ")", e);
+                        } catch (Throwable t) {
+                            log.log(Level.SEVERE, "[EnderVaults] Unable to save migrated vault. (" + ownerUUID.toString() + ", " + vaultName + ")", t);
                         }
                     } else {
                         log.log(Level.INFO, "[EnderVaults] Skipping vault " + vaultName + " for UUID " + ownerUUID.toString() + " due to no contents.");

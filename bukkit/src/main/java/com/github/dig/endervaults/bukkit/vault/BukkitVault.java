@@ -2,8 +2,8 @@ package com.github.dig.endervaults.bukkit.vault;
 
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
-import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.VaultState;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import com.github.dig.endervaults.bukkit.util.ItemDataFix;
@@ -19,22 +19,21 @@ import com.saicone.rtag.util.ServerInstance;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 
 @Log
-public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
+public class BukkitVault implements Vault, InventoryHolder {
 
     private static final Object EMPTY_ITEM = TagCompound.newTag();
 
@@ -44,13 +43,27 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
         }
     }
 
+    @NotNull
+    public static BukkitVault create(@NotNull UUID owner, int order) {
+        FileConfiguration configuration = (FileConfiguration) VaultPluginProvider.getPlugin().getConfigFile().getConfiguration();
+
+        String title = VaultPluginProvider.getPlugin().getLanguage().get(Lang.VAULT_TITLE, Map.of("order", order));
+        int size = configuration.getInt("vault.default-rows", 3) * 9;
+
+        final BukkitVault vault = new BukkitVault(UUID.randomUUID(), title, size, owner, new HashMap<>());
+        vault.set(VaultDefaultMetadata.ORDER, order);
+        vault.setMetadataState(VaultState.LOADED);
+
+        return vault;
+    }
+
     private final UUID id;
     private final UUID ownerUUID;
     private final Inventory inventory;
     private final Map<String, Object> metadata;
 
-    private transient boolean modified = false;
-    private transient boolean contentLoaded = true;
+    private transient VaultState contentState = VaultState.UNKNOWN;
+    private transient VaultState metadataState = VaultState.UNKNOWN;
 
     private static final Map<UUID, UUID> WAITING = new HashMap<>();
     private transient CompletableFuture<Void> future;
@@ -64,6 +77,8 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
         this.ownerUUID = ownerUUID;
         this.inventory = Bukkit.createInventory(this, size, title);
         this.metadata = metadata;
+
+        setMetadataState(VaultState.LOADED);
     }
 
     @ApiStatus.Internal
@@ -72,16 +87,9 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
         this.ownerUUID = ownerUUID;
         this.inventory = inventory;
         this.metadata = metadata;
-    }
 
-    @Override
-    public boolean isModified() {
-        return modified;
-    }
-
-    @Override
-    public boolean isContentLoaded() {
-        return contentLoaded;
+        setContentState(VaultState.MODIFIED);
+        setMetadataState(VaultState.MODIFIED);
     }
 
     @Override
@@ -106,7 +114,7 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
 
     @Override
     public int getFreeSize() {
-        if (!isContentLoaded()) {
+        if (getContentState().isNotValid()) {
             final Integer freeSize = (Integer) metadata.get(VaultDefaultMetadata.FREE_SIZE.getKey());
             return freeSize != null ? freeSize : 0;
         }
@@ -121,41 +129,7 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
     }
 
     @Override
-    public @NotNull Map<String, Object> getMetadata() {
-        return metadata;
-    }
-
-    @Override
-    public @Nullable <T> Object set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
-        Object result;
-        if (value == null) {
-            result = metadata.put(meta.getKey(), Vault.NULL_VALUE);
-        } else {
-            result = metadata.put(meta.getKey(), value);
-        }
-
-        if (result == Vault.NULL_VALUE) {
-            result = null;
-        }
-        setModified(this.modified || result != value);
-
-        return result;
-    }
-
-    public void setModified(boolean modified) {
-        this.modified = modified;
-    }
-
-    @NotNull
-    @Contract("_ -> this")
-    public BukkitVault setContentLoaded(boolean contentLoaded) {
-        this.contentLoaded = contentLoaded;
-        return this;
-    }
-
-    @Override
-    @Nullable
-    public String encode() {
+    public @NotNull String getContent() throws IOException {
         try (ByteArrayOutputStream array = new ByteArrayOutputStream(); DataOutputStream out = new DataOutputStream(array)) {
             Object tagList = TagList.newTag();
             List<Object> list = TagList.getValue(tagList);
@@ -171,14 +145,26 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
             }
             TStreamTools.write(tagList, out);
             return new String(Base64.getEncoder().encode(array.toByteArray()));
-        } catch (IOException e) {
-            log.log(Level.SEVERE, "[EnderVaults] Unable to encode bukkit vault.", e);
-            return null;
         }
     }
 
     @Override
-    public void decode(String encoded) {
+    public @NotNull Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    @Override
+    public @NotNull VaultState getContentState() {
+        return contentState;
+    }
+
+    @Override
+    public @NotNull VaultState getMetadataState() {
+        return metadataState;
+    }
+
+    @Override
+    public void setContent(@NotNull String encoded) throws IOException {
         ItemStack[] items = new ItemStack[inventory.getSize()];
         try (ByteArrayInputStream array = new ByteArrayInputStream(Base64.getDecoder().decode(encoded)); DataInputStream in = new DataInputStream(array)) {
             Object tagList = TStreamTools.read(in);
@@ -201,54 +187,93 @@ public class BukkitVault implements Vault, VaultSerializable, InventoryHolder {
                     items[i] = ItemTagStream.INSTANCE.fromCompound(compound);
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to decode " + this.getId() + " vault", e);
         }
 
         inventory.setContents(items);
     }
 
+    @Override
+    public @Nullable <T> Object setMetadata(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
+        Object result;
+        if (value == null) {
+            result = metadata.put(meta.getKey(), Vault.NULL_VALUE);
+        } else {
+            result = metadata.put(meta.getKey(), value);
+        }
+
+        if (result == Vault.NULL_VALUE) {
+            result = null;
+        }
+
+        if (getMetadataState() != VaultState.MODIFIED && result != value) {
+            setMetadataState(VaultState.MODIFIED);
+        }
+
+        return result;
+    }
+
+    @Override
+    public void setContentState(@NotNull VaultState state) {
+        this.contentState = state;
+    }
+
+    @Override
+    public void setMetadataState(@NotNull VaultState state) {
+        this.metadataState = state;
+    }
+
     public synchronized void launchFor(Player player) {
-        if (isContentLoaded()) {
+        if (getContentState().isValid()) {
             player.openInventory(inventory);
+            return;
+        } else if (getContentState() == VaultState.ERROR) {
+            player.sendMessage(VaultPluginProvider.getPlugin().getLanguage().get(Lang.PLAYER_LOADING_ERROR));
             return;
         }
 
         if (future == null) {
-            future = CompletableFuture.supplyAsync(() -> {
-                if (!VaultPluginProvider.getPlugin().getDataStorage().loadContents(this, this)) {
-                    throw new RuntimeException("Cannot load vault " + this.getId() + " contents");
-                }
-                setContentLoaded(true);
-                set(VaultDefaultMetadata.FREE_SIZE, getFreeSize());
+            future = new CompletableFuture<>();
+            Bukkit.getScheduler().runTaskAsynchronously(VaultPluginProvider.<EVBukkitPlugin>getPlugin(), () -> {
+                try {
+                    VaultPluginProvider.getPlugin().getDataStorage().loadContents(this);
 
-                Bukkit.getScheduler().runTask((EVBukkitPlugin) VaultPluginProvider.getPlugin(), () -> {
-                    final Vault vault = VaultPluginProvider.getPlugin().getRegistry().get(this.getOwner(), this.getId()).orElse(null);
+                    setContentState(VaultState.LOADED);
+                    set(VaultDefaultMetadata.FREE_SIZE, getFreeSize());
+
+                    future.complete(null);
+                } catch (Throwable t) {
+                    setContentState(VaultState.ERROR);
+
+                    future.completeExceptionally(t);
+                    return;
+                }
+
+                Bukkit.getScheduler().runTask(VaultPluginProvider.<EVBukkitPlugin>getPlugin(), () -> {
+                    final BukkitVault vault = VaultPluginProvider.getPlugin().getRegistry().getHolder(this.getOwner()).<BukkitVault>getVault(this.getId()).orElse(null);
                     // Vault is no longer loaded
-                    if (vault == null) {
+                    if (vault != this) {
                         return;
                     }
 
                     WAITING.entrySet().removeIf(entry -> {
-                       if (!entry.getValue().equals(vault.getId()))  {
-                           return false;
-                       }
+                        if (!entry.getValue().equals(vault.getId()))  {
+                            return false;
+                        }
                         final Player onlinePlayer = Bukkit.getPlayer(entry.getKey());
                         if (onlinePlayer != null) {
-                            player.openInventory(inventory);
+                            vault.launchFor(onlinePlayer);
                         }
-                       return true;
+                        return true;
                     });
                 });
-                return null;
-            }, command -> Bukkit.getScheduler().runTaskAsynchronously((EVBukkitPlugin) VaultPluginProvider.getPlugin(), command));
+            });
         } else if (future.isCompletedExceptionally()) {
             player.sendMessage(VaultPluginProvider.getPlugin().getLanguage().get(Lang.PLAYER_LOADING_ERROR));
             return;
         }
 
         if (WAITING.put(player.getUniqueId(), this.getId()) == null) {
-            Bukkit.getScheduler().runTaskLaterAsynchronously((EVBukkitPlugin) VaultPluginProvider.getPlugin(), () -> {
+            Bukkit.getScheduler().runTaskLaterAsynchronously(VaultPluginProvider.<EVBukkitPlugin>getPlugin(), () -> {
                 if (this.getId().equals(WAITING.get(player.getUniqueId()))) {
                     player.sendMessage(VaultPluginProvider.getPlugin().getLanguage().get(Lang.PLAYER_NOT_LOADED));
                 }

@@ -3,7 +3,8 @@ package com.github.dig.endervaults.bukkit;
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.permission.UserPermission;
-import com.github.dig.endervaults.api.vault.VaultPersister;
+import com.github.dig.endervaults.api.vault.VaultRegistry;
+import com.github.dig.endervaults.api.vault.VaultState;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorInventory;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
@@ -27,7 +28,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -36,31 +36,21 @@ import java.util.stream.Collectors;
 
 public class BukkitListener implements Listener {
 
-    private final EVBukkitPlugin plugin = (EVBukkitPlugin) VaultPluginProvider.getPlugin();
-    private final VaultPersister persister = plugin.getPersister();
+    private final EVBukkitPlugin plugin = VaultPluginProvider.getPlugin();
+    private final VaultRegistry registry = plugin.getRegistry();
     private final UserPermission<Player> permission = plugin.getPermission();
 
     private final Map<UUID, BukkitTask> pendingLoadMap = new HashMap<>();
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        FileConfiguration config = plugin.getConfigFile().getConfiguration();
-        BukkitTask bukkitTask = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin,
-                () -> persister.load(player.getUniqueId()),
-                config.getLong("storage.settings.load-delay", 5 * 20));
-        pendingLoadMap.put(player.getUniqueId(), bukkitTask);
+        registry.load(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        if (pendingLoadMap.containsKey(player.getUniqueId())) {
-            pendingLoadMap.remove(player.getUniqueId()).cancel();
-        }
-        BukkitVault.stopWaiting(player);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin,
-                () -> persister.save(player.getUniqueId()));
+        BukkitVault.stopWaiting(event.getPlayer());
+        registry.unload(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -71,12 +61,16 @@ public class BukkitListener implements Listener {
 
         if (inventory.getHolder() instanceof BukkitVault) {
             final BukkitVault vault = (BukkitVault) inventory.getHolder();
+            if (vault.getContentState().isNotValid()) {
+                event.setCancelled(true);
+                return;
+            }
             if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
                 player.sendMessage(plugin.getLanguage().get(Lang.BLACKLISTED_ITEM));
                 event.setCancelled(true);
                 return;
             }
-            vault.setModified(true);
+            vault.setContentState(VaultState.MODIFIED);
         }
     }
 
@@ -87,11 +81,15 @@ public class BukkitListener implements Listener {
 
         if (inventory.getHolder() instanceof BukkitVault) {
             final BukkitVault vault = (BukkitVault) inventory.getHolder();
+            if (vault.getContentState().isNotValid()) {
+                event.setCancelled(true);
+                return;
+            }
             if (isBlacklistEnabled() && getBlacklisted().contains(item.getType())) {
                 event.setCancelled(true);
                 return;
             }
-            vault.setModified(true);
+            vault.setContentState(VaultState.MODIFIED);
         }
     }
 
@@ -103,11 +101,15 @@ public class BukkitListener implements Listener {
 
         if (inventory.getHolder() instanceof BukkitVault) {
             final BukkitVault vault = (BukkitVault) inventory.getHolder();
+            if (vault.getContentState().isNotValid()) {
+                event.setCancelled(true);
+                return;
+            }
             if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player) && getBlacklisted().contains(item.getType())) {
                 event.setCancelled(true);
                 return;
             }
-            vault.setModified(true);
+            vault.setContentState(VaultState.MODIFIED);
         }
     }
 
@@ -116,13 +118,12 @@ public class BukkitListener implements Listener {
         if (event.getInventory().getHolder() instanceof BukkitVault) {
             final BukkitVault vault = (BukkitVault) event.getInventory().getHolder();
             vault.set(VaultDefaultMetadata.FREE_SIZE, vault.getFreeSize());
-            if (vault.isModified()) {
+            if (vault.meet(VaultState.MODIFIED)) {
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                     try {
                         plugin.getDataStorage().save(vault);
-                        vault.setModified(false);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    } catch (Throwable t) {
+                        throw new RuntimeException(t);
                     }
                 });
             }
@@ -136,14 +137,14 @@ public class BukkitListener implements Listener {
 
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && block.getType() == Material.ENDER_CHEST && isEnderchestReplaced()) {
             event.setCancelled(true);
-            final VaultPersister.State state = plugin.getPersister().getState(player.getUniqueId());
-            if (state == VaultPersister.State.UNKNOWN) {
+            final VaultState state = registry.getHolder(player.getUniqueId()).getState();
+            if (state == VaultState.UNKNOWN) {
                 player.sendMessage(plugin.getLanguage().get(Lang.INVALID_VAULT_STATE));
                 return;
-            } else if (state == VaultPersister.State.LOADING) {
+            } else if (state == VaultState.LOADING) {
                 player.sendMessage(plugin.getLanguage().get(Lang.PLAYER_NOT_LOADED));
                 return;
-            } else if (state == VaultPersister.State.ERROR) {
+            } else if (state == VaultState.ERROR) {
                 player.sendMessage(plugin.getLanguage().get(Lang.PLAYER_LOADING_ERROR));
                 return;
             }

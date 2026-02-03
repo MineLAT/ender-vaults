@@ -8,7 +8,6 @@ import com.github.dig.endervaults.api.lang.Language;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
-import com.github.dig.endervaults.api.vault.VaultPersister;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.command.VaultAdminCommand;
@@ -20,7 +19,6 @@ import com.github.dig.endervaults.bukkit.ui.icon.SelectIconListener;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorListener;
 import com.github.dig.endervaults.bukkit.storage.YamlStorage;
 import com.github.dig.endervaults.bukkit.storage.HikariStorage;
-import com.github.dig.endervaults.bukkit.vault.BukkitVaultPersister;
 import com.github.dig.endervaults.bukkit.vault.metadata.BukkitVaultMetadataRegistry;
 import com.github.dig.endervaults.bukkit.vault.metadata.IntegerMetadataConverter;
 import com.github.dig.endervaults.bukkit.vault.metadata.StringMetadataConverter;
@@ -50,7 +48,6 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
     private Language language;
     private VaultMetadataRegistry metadataRegistry;
     private DataStorage dataStorage;
-    private VaultPersister persister;
     private BukkitUserPermission permission;
     private Metrics metrics;
 
@@ -77,11 +74,6 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
     @Override
     public DataStorage getDataStorage() {
         return dataStorage;
-    }
-
-    @Override
-    public VaultPersister getPersister() {
-        return persister;
     }
 
     @Override
@@ -112,10 +104,6 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
 
     @Override
     public void onDisable() {
-        if (persister != null) {
-            persister.save();
-        }
-
         if (dataStorage != null) {
             dataStorage.close();
         }
@@ -172,7 +160,6 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
         registry = new BukkitVaultRegistry();
         language = new BukkitLanguage();
         metadataRegistry = new BukkitVaultMetadataRegistry();
-        persister = new BukkitVaultPersister();
         permission = new BukkitUserPermission();
     }
 

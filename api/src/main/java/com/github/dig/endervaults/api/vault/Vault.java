@@ -4,16 +4,13 @@ import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
 public interface Vault {
 
     Object NULL_VALUE = new Object();
-
-    boolean isModified();
-
-    boolean isContentLoaded();
 
     @NotNull
     UUID getId();
@@ -26,7 +23,38 @@ public interface Vault {
     int getFreeSize();
 
     @NotNull
+    String getContent() throws IOException;
+
+    @NotNull
     Map<String, Object> getMetadata();
+
+    @NotNull
+    VaultState getContentState();
+
+    @NotNull
+    VaultState getMetadataState();
+
+    void setContent(@NotNull String encoded) throws IOException;
+
+    @Nullable
+    <T> Object setMetadata(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value);
+
+    void setContentState(@NotNull VaultState state);
+
+    void setMetadataState(@NotNull VaultState state);
+
+
+
+    // utility methods
+
+    default boolean meet(@NotNull VaultState state) {
+        return getContentState() == state || getMetadataState() == state;
+    }
+
+    default void set(@NotNull VaultState state) {
+        setContentState(state);
+        setMetadataState(state);
+    }
 
     default boolean has(@NotNull VaultDefaultMetadata<?> meta) {
         return getMetadata().getOrDefault(meta.getKey(), NULL_VALUE) != NULL_VALUE;
@@ -39,6 +67,7 @@ public interface Vault {
     }
 
     @Nullable
-    <T> Object set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value);
-
+    default <T> Object set(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value) {
+        return setMetadata(meta, value);
+    }
 }

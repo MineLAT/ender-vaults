@@ -1,73 +1,88 @@
 package com.github.dig.endervaults.bukkit.vault;
 
+import com.github.dig.endervaults.api.VaultPluginProvider;
+import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.VaultHolder;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
-import org.javatuples.Pair;
+import com.github.dig.endervaults.api.vault.VaultState;
+import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class BukkitVaultRegistry implements VaultRegistry {
 
-    private final Map<UUID, Map<UUID, Vault>> vaults;
+    private final EVBukkitPlugin plugin = VaultPluginProvider.getPlugin();
+    private final DataStorage dataStorage = plugin.getDataStorage();
+    private final Map<UUID, VaultHolder> holders = new HashMap<>();
 
-    public BukkitVaultRegistry() {
-        this.vaults = new HashMap<>();
+    private final Map<UUID, BukkitTask> tasks = new HashMap<>();
+
+    @Override
+    public @NotNull VaultHolder getHolder(@NotNull UUID owner) {
+        return holders.computeIfAbsent(owner, VaultHolder::new);
     }
 
     @Override
-    public Optional<Vault> get(UUID ownerUUID, UUID id) {
-        final Map<UUID, Vault> map = vaults.get(ownerUUID);
-        if (map == null) {
-            return Optional.empty();
+    public synchronized void load(@NotNull UUID owner) {
+        BukkitTask task = tasks.remove(owner);
+        if (task != null) {
+            task.cancel();
         }
-        return Optional.ofNullable(map.get(id));
-    }
 
-    @Override
-    public Map<UUID, Vault> get(UUID ownerUUID) {
-        Map<UUID, Vault> map = vaults.get(ownerUUID);
-        if (map == null) {
-            map = new HashMap<>();
-            vaults.put(ownerUUID, map);
+        final VaultHolder holder = getHolder(owner);
+        holder.setState(VaultState.LOADING);
+
+        final Runnable runnable = () -> {
+            try {
+                for (Vault vault : dataStorage.load(owner)) {
+                    holder.compute(vault);
+                }
+                holder.setState(VaultState.LOADED);
+            } catch (Throwable t) {
+                holder.setState(VaultState.ERROR);
+                t.printStackTrace();
+            }
+        };
+        final long delay = plugin.getConfigFile().getConfiguration().getLong("storage.settings.load-delay", 5 * 20);
+        if (delay > 0) {
+            task = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, runnable, delay);
+        } else {
+            task = Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable);
         }
-        return map;
+        tasks.put(owner, task);
     }
 
     @Override
-    public Optional<Vault> getByMetadata(UUID ownerUUID, String key, Object value) {
-        return get(ownerUUID).values()
-                .stream()
-                .filter(vault -> vault.getMetadata().get(key) != null)
-                .map(vault -> new Pair<>(vault, vault.getMetadata().get(key)))
-                .filter(vaultObjectPair -> vaultObjectPair.getValue1().equals(value))
-                .map(vaultObjectPair -> vaultObjectPair.getValue0())
-                .findFirst();
-    }
-
-    @Override
-    public Set<UUID> getAllOwners() {
-        return vaults.keySet();
-    }
-
-    @Override
-    public synchronized void register(UUID ownerUUID, Vault vault) {
-        Map<UUID, Vault> map = vaults.get(ownerUUID);
-        if (map == null) {
-            map = new HashMap<>();
-            vaults.put(ownerUUID, map);
+    public void unload(@NotNull UUID owner) {
+        BukkitTask task = tasks.remove(owner);
+        if (task != null) {
+            task.cancel();
         }
-        map.put(vault.getId(), vault);
-    }
 
-    @Override
-    public synchronized void clean(UUID ownerUUID) {
-        final Map<UUID, Vault> map = vaults.remove(ownerUUID);
-        if (map != null) {
-            map.clear();
+        final VaultHolder holder = holders.get(owner);
+        if (holder != null) {
+            holder.setState(VaultState.UNKNOWN);
+            final Map<UUID, Vault> vaults = holder.clear();
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                for (Map.Entry<UUID, Vault> entry : vaults.entrySet()) {
+                    final Vault vault = entry.getValue();
+                    if (vault.meet(VaultState.MODIFIED)) {
+                        try {
+                            dataStorage.save(vault);
+                        } catch (Throwable t) {
+                            plugin.getLogger().log(Level.SEVERE, "Cannot save vault " + vault.getId() + " from " + owner, t);
+                        }
+                    }
+                }
+            });
         }
     }
 }

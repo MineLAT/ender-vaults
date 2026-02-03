@@ -5,6 +5,7 @@ import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.permission.UserPermission;
 import com.github.dig.endervaults.api.selector.SelectorMode;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.VaultHolder;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
@@ -30,7 +31,7 @@ import java.util.stream.Collectors;
 @Log
 public class SelectorInventory {
 
-    private final EVBukkitPlugin plugin = (EVBukkitPlugin) VaultPluginProvider.getPlugin();
+    private final EVBukkitPlugin plugin = VaultPluginProvider.getPlugin();
     private final VaultRegistry registry = plugin.getRegistry();
     private final UserPermission<Player> permission = plugin.getPermission();
 
@@ -70,6 +71,10 @@ public class SelectorInventory {
 
         ItemStack locked = createLockedItem();
         Player target = Bukkit.getPlayer(ownerUUID);
+        VaultHolder holder = plugin.getRegistry().getHolder(ownerUUID);
+        if (holder.getState().isNotValid()) {
+            return;
+        }
 
         for (int i = 0; i < inventory.getSize(); i++) {
             int order = page > 1 ? ((page - 1) * inventory.getSize()) + i : ((page - 1) * inventory.getSize()) + (i + 1);
@@ -81,14 +86,14 @@ public class SelectorInventory {
                 int free = 0;
                 int filled = 0;
 
-                Optional<Vault> vaultOptional = registry.getByMetadata(ownerUUID, VaultDefaultMetadata.ORDER.getKey(), order);
+                Optional<Vault> vaultOptional = holder.getVault(order);
                 if (vaultOptional.isPresent()) {
                     Vault vault = vaultOptional.get();
 
                     id = vault.getId();
                     size = vault.getSize();
 
-                    if (!vault.isContentLoaded() && vault.get(VaultDefaultMetadata.FREE_SIZE) == null) {
+                    if (vault.getContentState().isNotValid() && vault.get(VaultDefaultMetadata.FREE_SIZE) == null) {
                         inventory.setItem(i, createUnloadItem(id, order, size));
                         continue;
                     }

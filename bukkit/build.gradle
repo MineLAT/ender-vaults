@@ -41,7 +41,6 @@ shadowJar {
     relocate 'com.zaxxer.hikari', project.group + '.lib.hikari'
     relocate 'org.mariadb.jdbc', project.group + '.lib.mariadb'
     relocate 'com.saicone.rtag', project.group + '.lib.rtag'
-    relocate 'org.javatuples', project.group + '.lib.javatuples'
 
     minimize {
         exclude(dependency('org.mariadb.jdbc:mariadb-java-client:.*'))

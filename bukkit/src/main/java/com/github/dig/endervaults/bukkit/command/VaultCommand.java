@@ -5,19 +5,16 @@ import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.lang.Language;
 import com.github.dig.endervaults.api.permission.UserPermission;
-import com.github.dig.endervaults.api.vault.Vault;
-import com.github.dig.endervaults.api.vault.VaultPersister;
+import com.github.dig.endervaults.api.vault.VaultHolder;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
-import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
+import com.github.dig.endervaults.api.vault.VaultState;
 import com.github.dig.endervaults.bukkit.ui.selector.SelectorInventory;
 import com.github.dig.endervaults.bukkit.vault.BukkitVault;
-import com.github.dig.endervaults.bukkit.vault.BukkitVaultFactory;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Optional;
 
 public class VaultCommand implements CommandExecutor {
@@ -36,14 +33,15 @@ public class VaultCommand implements CommandExecutor {
                 return true;
             }
 
-            final VaultPersister.State state = plugin.getPersister().getState(player.getUniqueId());
-            if (state == VaultPersister.State.UNKNOWN) {
+            final VaultHolder holder = plugin.getRegistry().getHolder(player.getUniqueId());
+            final VaultState state = holder.getState();
+            if (state == VaultState.UNKNOWN) {
                 sender.sendMessage(plugin.getLanguage().get(Lang.INVALID_VAULT_STATE));
                 return true;
-            } else if (state == VaultPersister.State.LOADING) {
+            } else if (state == VaultState.LOADING) {
                 sender.sendMessage(language.get(Lang.PLAYER_NOT_LOADED));
                 return true;
-            } else if (state == VaultPersister.State.ERROR) {
+            } else if (state == VaultState.ERROR) {
                 sender.sendMessage(language.get(Lang.PLAYER_LOADING_ERROR));
                 return true;
             }
@@ -69,17 +67,14 @@ public class VaultCommand implements CommandExecutor {
                     return true;
                 }
 
-                Optional<Vault> vaultOptional = registry
-                        .getByMetadata(player.getUniqueId(), VaultDefaultMetadata.ORDER.getKey(), orderValue);
+                Optional<BukkitVault> vaultOptional = holder.getVault(orderValue);
 
                 BukkitVault vault;
                 if (vaultOptional.isPresent()) {
-                    vault = (BukkitVault) vaultOptional.get();
+                    vault = vaultOptional.get();
                 } else {
-                    vault = (BukkitVault) BukkitVaultFactory.create(player.getUniqueId(), new HashMap<String, Object>(){{
-                        put(VaultDefaultMetadata.ORDER.getKey(), orderValue);
-                    }});
-                    registry.register(player.getUniqueId(), vault);
+                    vault = BukkitVault.create(player.getUniqueId(), orderValue);
+                    holder.compute(vault);
                 }
 
                 vault.launchFor(player);

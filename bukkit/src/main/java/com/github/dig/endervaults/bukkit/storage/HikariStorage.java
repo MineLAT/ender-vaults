@@ -4,8 +4,8 @@ import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
-import com.github.dig.endervaults.api.util.VaultSerializable;
 import com.github.dig.endervaults.api.vault.Vault;
+import com.github.dig.endervaults.api.vault.VaultState;
 import com.github.dig.endervaults.api.vault.metadata.MetadataConverter;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
@@ -18,6 +18,7 @@ import lombok.extern.java.Log;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,7 +30,7 @@ import java.util.logging.Level;
 @Log
 public class HikariStorage implements DataStorage {
 
-    private final EVBukkitPlugin plugin = (EVBukkitPlugin) VaultPluginProvider.getPlugin();
+    private final EVBukkitPlugin plugin = VaultPluginProvider.getPlugin();
 
     private HikariDataSource hikariDataSource;
     private String vaultTable;
@@ -70,8 +71,8 @@ public class HikariStorage implements DataStorage {
         vaultTable = settings.getString("tables.vault");
         metadataTable = settings.getString("tables.vault-metadata");
 
-        createTableIfNotExist(vaultTable, DatabaseConstants.SQL_CREATE_TABLE_VAULT);
-        createTableIfNotExist(metadataTable, DatabaseConstants.SQL_CREATE_TABLE_VAULT_METADATA);
+        createTableIfNotExist(vaultTable, SqlConstants.SQL_CREATE_TABLE_VAULT);
+        createTableIfNotExist(metadataTable, SqlConstants.SQL_CREATE_TABLE_VAULT_METADATA);
         return hikariDataSource.isRunning();
     }
 
@@ -83,125 +84,133 @@ public class HikariStorage implements DataStorage {
     }
 
     @Override
-    public boolean exists(UUID ownerUUID, UUID id) {
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_BY_ID_AND_OWNER, vaultTable);
+    public boolean exists(UUID ownerUUID, UUID id) throws Throwable {
+        return connect(con -> {
+            return exists(con, ownerUUID, id);
+        });
+    }
+
+    private boolean exists(@NotNull Connection con, UUID ownerUUID, UUID id) throws Throwable {
         boolean has;
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.CHECK_VAULT, vaultTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
 
             ResultSet rs = stmt.executeQuery();
             has = rs.next();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-            return false;
         }
         return has;
     }
 
     @Override
-    public List<Vault> load(UUID ownerUUID) {
-        return get(ownerUUID);
+    public List<Vault> load(UUID ownerUUID) throws Throwable {
+        return connect(con -> {
+            return selectVaults(con, ownerUUID);
+        });
     }
 
     @Override
-    public Optional<Vault> load(UUID ownerUUID, UUID id) {
-        return get(id, ownerUUID);
+    public Optional<Vault> load(UUID ownerUUID, UUID id) throws Throwable {
+        return connect(con -> {
+            return selectVault(con, id, ownerUUID);
+        });
     }
 
     @Override
-    public @NotNull <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) {
-        final String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_ID_BY_OWNER_AND_KEY_AND_VALUE, metadataTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, ownerUUID.toString());
-            stmt.setString(2, meta.getKey());
-            stmt.setString(3, meta.save(value));
-
-            final ResultSet result = stmt.executeQuery();
-            if (result.next()) {
-                final UUID id = UUID.fromString(result.getString("id"));
-                return get(conn, id, ownerUUID);
-            } else {
+    public @NotNull <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) throws Throwable {
+        return connect(con -> {
+            final UUID id = selectMetadataId(con, ownerUUID, meta.getKey(), meta.save(value));
+            if (id == null) {
                 return Optional.empty();
             }
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-            return Optional.empty();
-        }
+            return selectVault(con, id, ownerUUID);
+        });
     }
 
     @Override
-    public boolean loadContents(@NotNull Vault vault, @NotNull VaultSerializable serializable) {
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_CONTENTS_BY_ID, vaultTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, vault.getId().toString());
-
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                String contents = rs.getString("contents");
-                serializable.decode(contents);
+    public void loadContents(@NotNull Vault vault) throws Throwable {
+        connect(con -> {
+            final Integer order = vault.get(VaultDefaultMetadata.ORDER);
+            final UUID id = selectMetadataId(con, vault.getOwner(), VaultDefaultMetadata.ORDER.getKey(), String.valueOf(order));
+            if (id != null && !id.equals(vault.getId())) {
+                throw new IllegalStateException("Duplicated vault #" + order + " entry found for owner " + vault.getOwner() + " and vault " + vault.getId());
             }
-            return true;
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-        }
-        return false;
-    }
 
-    @Override
-    public void save(Vault vault) {
-        VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
-        if (exists(vault.getOwner(), vault.getId())) {
-            if (vault.isContentLoaded()) {
-                update(vault.getId(), vault.getOwner(), vault.getSize(), ((VaultSerializable) vault).encode());
-            }
-            vault.getMetadata().entrySet().removeIf(entry -> {
-                final String key = entry.getKey();
-                final Object value = entry.getValue();
-                // Clean keys that are marked to be deleted
-                if (value == Vault.NULL_VALUE) {
-                    delete(vault.getId(), key);
-                    return true;
+            try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.SELECT_CONTENT, vaultTable)) {
+                stmt.setString(1, vault.getId().toString());
+
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    String contents = rs.getString("contents");
+                    vault.setContent(contents);
                 }
-                metadataRegistry.get(key)
-                        .ifPresent(converter -> {
-                            if (exists(vault.getId(), vault.getOwner(), key)) {
-                                update(vault.getId(), vault.getOwner(), key, converter.from(value));
-                            } else {
-                                insert(vault.getId(), vault.getOwner(), key, converter.from(value));
-                            }
-                        });
-                return false;
-            });
-        } else {
-            if (vault.isContentLoaded()) {
-                String contents = ((VaultSerializable) vault).encode();
-                insert(vault.getId(), vault.getOwner(), vault.getSize(), contents);
             }
-            for (String key : vault.getMetadata().keySet()) {
-                Object value = vault.getMetadata().get(key);
-                metadataRegistry.get(key)
-                        .ifPresent(converter -> insert(vault.getId(), vault.getOwner(), key, converter.from(value)));
-            }
-        }
+        });
     }
 
     @Override
-    public int delete(UUID ownerUUID) {
-        int result = 0;
-        try (Connection conn = hikariDataSource.getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(String.format(DatabaseConstants.SQL_DELETE_VAULT_BY_OWNER, vaultTable))) {
+    public void save(Vault vault) throws Throwable {
+        connect(con -> {
+            if (exists(con, vault.getOwner(), vault.getId())) {
+                if (vault.getContentState() == VaultState.MODIFIED) {
+                    updateContent(con, vault.getId(), vault.getOwner(), vault.getSize(), vault.getContent());
+
+                    vault.setContentState(VaultState.LOADED);
+                }
+                if (vault.getMetadataState() == VaultState.MODIFIED) {
+                    final Iterator<Map.Entry<String, Object>> iterator = vault.getMetadata().entrySet().iterator();
+                    while (iterator.hasNext()) {
+                        final Map.Entry<String, Object> entry = iterator.next();
+                        final String key = entry.getKey();
+                        final Object value = entry.getValue();
+
+                        if (value == Vault.NULL_VALUE) {
+                            deleteMetadata(con, vault.getId(), key);
+                            iterator.remove();
+                            continue;
+                        }
+
+                        if (getMetadata(con, vault.getId(), vault.getOwner(), key) != null) {
+                            updateMetadata(con, vault.getId(), vault.getOwner(), key, value);
+                        } else {
+                            insertMetadata(con, vault.getId(), vault.getOwner(), key, value);
+                        }
+                    }
+
+                    vault.setMetadataState(VaultState.LOADED);
+                }
+            } else {
+                if (vault.getContentState() == VaultState.MODIFIED) {
+                    String contents = vault.getContent();
+                    insertContent(con, vault.getId(), vault.getOwner(), vault.getSize(), contents);
+
+                    vault.setContentState(VaultState.LOADED);
+                }
+                if (vault.getMetadataState() == VaultState.MODIFIED) {
+                    for (Map.Entry<String, Object> entry : vault.getMetadata().entrySet()) {
+                        insertMetadata(con, vault.getId(), vault.getOwner(), entry.getKey(), entry.getValue());
+                    }
+
+                    vault.setMetadataState(VaultState.LOADED);
+                }
+            }
+        });
+    }
+
+    @Override
+    public int delete(UUID ownerUUID) throws Throwable {
+        return connect(con -> {
+            int result = 0;
+            try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE, vaultTable)) {
                 stmt.setString(1, ownerUUID.toString());
                 result = stmt.executeUpdate();
             }
-            try (PreparedStatement stmt = conn.prepareStatement(String.format(DatabaseConstants.SQL_DELETE_VAULT_BY_OWNER, metadataTable))) {
+            try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE, metadataTable)) {
                 stmt.setString(1, ownerUUID.toString());
                 stmt.executeUpdate();
             }
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-        }
-        return result;
+            return result;
+        });
     }
 
     private void createTableIfNotExist(String table, String TABLE_SQL) {
@@ -213,90 +222,87 @@ public class HikariStorage implements DataStorage {
         }
     }
 
-    private BukkitVault create(UUID id, UUID ownerUUID, int size) {
-        Map<String, Object> metadata = getMetadata(ownerUUID, id);
+    private BukkitVault createVault(@NotNull Connection con, UUID id, UUID ownerUUID, int size) throws Throwable {
+        Map<String, Object> metadata = getMetadata(con, ownerUUID, id);
         String title = plugin.getLanguage().get(Lang.VAULT_TITLE, metadata);
-        return new BukkitVault(id, title, size, ownerUUID, metadata).setContentLoaded(false);
+        return new BukkitVault(id, title, size, ownerUUID, metadata);
     }
 
-    private void insert(UUID id, UUID ownerUUID, int size, String contents) {
-        String sql = String.format(DatabaseConstants.SQL_INSERT_VAULT, vaultTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    private void insertContent(@NotNull Connection con, UUID id, UUID ownerUUID, int size, String contents) throws Throwable {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.INSERT_VAULT, vaultTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
             stmt.setInt(3, size);
             stmt.setString(4, contents);
             stmt.executeUpdate();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         }
     }
 
-    private void insert(UUID id, UUID ownerUUID, String key, String value) {
-        String sql = String.format(DatabaseConstants.SQL_INSERT_VAULT_METADATA, metadataTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    private void insertMetadata(@NotNull Connection con, UUID id, UUID ownerUUID, String key, Object value) throws Throwable {
+        if (value == Vault.NULL_VALUE) {
+            return;
+        }
+        final MetadataConverter converter = plugin.getMetadataRegistry().get(key).orElse(null);
+        if (converter == null) {
+            return;
+        }
+        insertMetadata(con, id, ownerUUID, key, converter.from(value));
+    }
+
+    private void insertMetadata(@NotNull Connection con, UUID id, UUID ownerUUID, String key, String value) throws Throwable {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.INSERT, metadataTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
             stmt.setString(3, key);
             stmt.setString(4, value);
             stmt.executeUpdate();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         }
     }
 
-    private void update(UUID id, UUID ownerUUID, int size, String contents) {
-        String sql = String.format(DatabaseConstants.SQL_UPDATE_VAULT_BY_ID_AND_OWNER, vaultTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    private void updateContent(@NotNull Connection con, UUID id, UUID ownerUUID, int size, String contents) throws Throwable {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.UPDATE_CONTENT, vaultTable)) {
             stmt.setInt(1, size);
             stmt.setString(2, contents);
             stmt.setString(3, id.toString());
             stmt.setString(4, ownerUUID.toString());
             stmt.executeUpdate();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         }
     }
 
-    private void update(UUID id, UUID ownerUUID, String key, String value) {
-        String sql = String.format(DatabaseConstants.SQL_UPDATE_VAULT_METADATA_BY_ID_AND_OWNER_AND_KEY, metadataTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    private void updateMetadata(@NotNull Connection con, UUID id, UUID ownerUUID, String key, Object value) throws Throwable {
+        if (value == Vault.NULL_VALUE) {
+            return;
+        }
+        final MetadataConverter converter = plugin.getMetadataRegistry().get(key).orElse(null);
+        if (converter == null) {
+            return;
+        }
+        updateMetadata(con, id, ownerUUID, key, converter.from(value));
+    }
+
+    private void updateMetadata(@NotNull Connection con, UUID id, UUID ownerUUID, String key, String value) throws Throwable {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.UPDATE, metadataTable)) {
             stmt.setString(1, value);
             stmt.setString(2, id.toString());
             stmt.setString(3, ownerUUID.toString());
             stmt.setString(4, key);
             stmt.executeUpdate();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         }
     }
 
-    private void delete(@NotNull UUID id, @NotNull String key) {
-        String sql = String.format(DatabaseConstants.SQL_DELETE_VAULT_METADATA_BY_ID_AND_KEY, metadataTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    private void deleteMetadata(@NotNull Connection con, @NotNull UUID id, @NotNull String key) throws Throwable {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.DELETE, metadataTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, key);
             stmt.executeUpdate();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-        }
-    }
-
-    private Optional<Vault> get(UUID id, UUID ownerUUID) {
-        try (Connection conn = hikariDataSource.getConnection()) {
-            return get(conn, id, ownerUUID);
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-            return Optional.empty();
         }
     }
 
     @NotNull
-    private Optional<Vault> get(@NotNull Connection conn, @NotNull UUID id, @NotNull UUID ownerUUID) throws SQLException {
+    private Optional<Vault> selectVault(@NotNull Connection con, @NotNull UUID id, @NotNull UUID ownerUUID) throws Throwable {
         int size;
         String contents;
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_BY_ID_AND_OWNER, vaultTable);
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.SELECT_VAULT, vaultTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
 
@@ -308,37 +314,34 @@ public class HikariStorage implements DataStorage {
                 return Optional.empty();
             }
         }
-        final BukkitVault result = create(id, ownerUUID, size);
-        if (result != null) {
-            result.decode(contents);
-        }
-        return Optional.ofNullable(result);
+
+        final BukkitVault vault = createVault(con, id, ownerUUID, size);
+        vault.setContent(contents);
+        vault.setContentState(VaultState.LOADED);
+
+        return Optional.of(vault);
     }
 
-    private List<Vault> get(UUID ownerUUID) {
+    private List<Vault> selectVaults(@NotNull Connection con, UUID ownerUUID) throws Throwable {
         List<Vault> vaults = new ArrayList<>();
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_BY_OWNER, vaultTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.SELECT_VAULTS, vaultTable)) {
             stmt.setString(1, ownerUUID.toString());
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 UUID id = UUID.fromString(rs.getString("id"));
                 int size = rs.getInt("size");
-                vaults.add(create(id, ownerUUID, size));
+                vaults.add(createVault(con, id, ownerUUID, size));
             }
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         }
         return vaults;
     }
 
-    private Map<String, Object> getMetadata(UUID ownerUUID, UUID id) {
+    private Map<String, Object> getMetadata(@NotNull Connection con, UUID ownerUUID, UUID id) throws Throwable {
         VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
 
         Map<String, Object> metadata = new HashMap<>();
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_METADATA_BY_ID_AND_OWNER, metadataTable);
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.SELECT_KEY_VALUE, metadataTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
 
@@ -351,27 +354,81 @@ public class HikariStorage implements DataStorage {
                     metadata.put(key, converter.to(rs.getString("value")));
                 }
             }
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
         }
-
         return metadata;
     }
 
-    private boolean exists(UUID id, UUID ownerUUID, String key) {
-        String sql = String.format(DatabaseConstants.SQL_SELECT_VAULT_METADATA_BY_ID_AND_OWNER_AND_KEY, metadataTable);
-        boolean has;
-        try (Connection conn = hikariDataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    @Nullable
+    private Object getMetadata(@NotNull Connection con, UUID id, UUID ownerUUID, String key) throws Throwable {
+        Optional<MetadataConverter> converterOptional = plugin.getMetadataRegistry().get(key);
+        if (converterOptional.isEmpty()) {
+            return null;
+        }
+
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.SELECT_VALUE, metadataTable)) {
             stmt.setString(1, id.toString());
             stmt.setString(2, ownerUUID.toString());
             stmt.setString(3, key);
 
             ResultSet rs = stmt.executeQuery();
-            has = rs.next();
-        } catch (SQLException ex) {
-            log.log(Level.SEVERE, "[EnderVaults] Error while executing query.", ex);
-            return false;
+            if (rs.next()) {
+                final String value = rs.getString("value");
+                return converterOptional.get().to(value);
+            }
+
+            return null;
         }
-        return has;
+    }
+
+    @Nullable
+    private UUID selectMetadataId(@NotNull Connection con, @NotNull UUID ownerUUID, @NotNull String key, @NotNull String value) throws Throwable {
+        try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.SELECT_ID, metadataTable)) {
+            stmt.setString(1, ownerUUID.toString());
+            stmt.setString(2, key);
+            stmt.setString(3, value);
+
+            final ResultSet result = stmt.executeQuery();
+            if (result.next()) {
+                return UUID.fromString(result.getString("id"));
+            } else {
+                return null;
+            }
+        }
+    }
+
+    @NotNull
+    private PreparedStatement stmt(@NotNull Connection con, @NotNull String sql, @NotNull Object... args) throws Throwable {
+        return con.prepareStatement(String.format(sql, args));
+    }
+
+    public void connect(@NotNull SqlConsumer consumer) throws Throwable {
+        if (hikariDataSource == null || hikariDataSource.isClosed()) {
+            throw new IllegalStateException("The current database connection is closed");
+        }
+
+        try (Connection connection = hikariDataSource.getConnection()) {
+            consumer.accept(connection);
+        }
+    }
+
+    public <R> R connect(@NotNull SqlFunction<R> consumer) throws Throwable {
+        if (hikariDataSource == null || hikariDataSource.isClosed()) {
+            throw new IllegalStateException("The current database connection is closed");
+        }
+
+        try (Connection connection = hikariDataSource.getConnection()) {
+            return consumer.apply(connection);
+        }
+    }
+
+    @FunctionalInterface
+    public interface SqlConsumer {
+        void accept(@NotNull Connection connection) throws Throwable;
+    }
+
+    @FunctionalInterface
+    public interface SqlFunction<R> {
+        @Nullable
+        R apply(@NotNull Connection connection) throws Throwable;
     }
 }
