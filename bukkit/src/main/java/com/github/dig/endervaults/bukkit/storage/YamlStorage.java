@@ -65,10 +65,11 @@ public class YamlStorage implements DataStorage {
     }
 
     @Override
-    public @NotNull <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) throws Throwable {
+    public @NotNull <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable {
         final File file = getOwnerFolder(ownerUUID);
         if (file.isDirectory()) {
             File[] files = file.listFiles((File f, String name) -> name.endsWith(".yml"));
+            int count = 0;
             for (File vaultFile : files) {
                 final UUID id = UUID.fromString(Files.getNameWithoutExtension(vaultFile.getName()));
                 final FileConfiguration configuration = loadFile(ownerUUID, id);
@@ -80,7 +81,10 @@ public class YamlStorage implements DataStorage {
                     continue;
                 }
                 if (value.equals(meta.parse(fileValue))) {
-                    return Optional.of(deserialize(ownerUUID, id, configuration));
+                    if (count == snapshot) {
+                        return Optional.of(deserialize(ownerUUID, id, configuration));
+                    }
+                    count++;
                 }
             }
         }

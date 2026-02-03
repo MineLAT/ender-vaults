@@ -117,13 +117,13 @@ public class HikariStorage implements DataStorage {
     }
 
     @Override
-    public @NotNull <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) throws Throwable {
+    public @NotNull <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable {
         return connect(con -> {
-            final UUID id = selectMetadataId(con, ownerUUID, meta.getKey(), meta.save(value));
-            if (id == null) {
+            final List<UUID> ids = selectMetadataIds(con, ownerUUID, meta.getKey(), meta.save(value));
+            if (ids == null || ids.isEmpty() || snapshot >= ids.size()) {
                 return Optional.empty();
             }
-            return selectVault(con, id, ownerUUID);
+            return selectVault(con, ids.get(snapshot), ownerUUID);
         });
     }
 
@@ -131,8 +131,8 @@ public class HikariStorage implements DataStorage {
     public void loadContents(@NotNull Vault vault) throws Throwable {
         connect(con -> {
             final Integer order = vault.get(VaultDefaultMetadata.ORDER);
-            final UUID id = selectMetadataId(con, vault.getOwner(), VaultDefaultMetadata.ORDER.getKey(), String.valueOf(order));
-            if (id != null && !id.equals(vault.getId())) {
+            final List<UUID> ids = selectMetadataIds(con, vault.getOwner(), VaultDefaultMetadata.ORDER.getKey(), String.valueOf(order));
+            if (ids != null && !ids.isEmpty() && (!ids.contains(vault.getId()) || ids.size() > 1)) {
                 throw new IllegalStateException("Duplicated vault #" + order + " entry found for owner " + vault.getOwner() + " and vault " + vault.getId());
             }
 
@@ -381,19 +381,22 @@ public class HikariStorage implements DataStorage {
     }
 
     @Nullable
-    private UUID selectMetadataId(@NotNull Connection con, @NotNull UUID ownerUUID, @NotNull String key, @NotNull String value) throws Throwable {
+    private List<UUID> selectMetadataIds(@NotNull Connection con, @NotNull UUID ownerUUID, @NotNull String key, @NotNull String value) throws Throwable {
+        List<UUID> list = null;
         try (PreparedStatement stmt = stmt(con, SqlConstants.Metadata.SELECT_ID, metadataTable)) {
             stmt.setString(1, ownerUUID.toString());
             stmt.setString(2, key);
             stmt.setString(3, value);
 
             final ResultSet result = stmt.executeQuery();
-            if (result.next()) {
-                return UUID.fromString(result.getString("id"));
-            } else {
-                return null;
+            while (result.next()) {
+                if (list == null) {
+                    list = new ArrayList<>();
+                }
+                list.add(UUID.fromString(result.getString("id")));
             }
         }
+        return list;
     }
 
     @NotNull

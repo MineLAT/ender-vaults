@@ -87,12 +87,13 @@ public class VaultAdminCommand implements CommandExecutor {
             result = plugin.getRegistry().getHolder(target.getUniqueId()).getVault(vaultOrder);
         } else {
             try {
-                result = plugin.getDataStorage().load(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder);
+                result = plugin.getDataStorage().loadSnapshot(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder, args.length > 2 ? Integer.parseInt(args[2]) : 0);
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             }
         }
         result.ifPresent(vault -> {
+            plugin.getLogger().info("Launching vault " + vault.getId() + " for player " + player.getName());
             if (Bukkit.isPrimaryThread()) {
                 ((BukkitVault) vault).launchFor(player);
             } else {

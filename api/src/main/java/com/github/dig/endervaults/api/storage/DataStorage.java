@@ -21,7 +21,7 @@ public interface DataStorage {
     Optional<Vault> load(UUID ownerUUID, UUID id) throws Throwable;
 
     @NotNull
-    <T> Optional<Vault> load(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value) throws Throwable;
+    <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable;
 
     default void loadContents(@NotNull Vault vault) throws Throwable {
         throw new IllegalStateException("The current database type doesn't support vault content loading");
