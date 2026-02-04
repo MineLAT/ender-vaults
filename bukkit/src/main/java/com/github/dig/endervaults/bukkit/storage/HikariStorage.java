@@ -6,6 +6,7 @@ import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.VaultState;
+import com.github.dig.endervaults.api.vault.exception.VaultOrderException;
 import com.github.dig.endervaults.api.vault.metadata.MetadataConverter;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.api.vault.metadata.VaultMetadataRegistry;
@@ -128,12 +129,14 @@ public class HikariStorage implements DataStorage {
     }
 
     @Override
-    public void loadContents(@NotNull Vault vault) throws Throwable {
+    public void loadContents(@NotNull Vault vault, boolean unique) throws Throwable {
         connect(con -> {
-            final Integer order = vault.get(VaultDefaultMetadata.ORDER);
-            final List<UUID> ids = selectMetadataIds(con, vault.getOwner(), VaultDefaultMetadata.ORDER.getKey(), String.valueOf(order));
-            if (ids != null && !ids.isEmpty() && (!ids.contains(vault.getId()) || ids.size() > 1)) {
-                throw new IllegalStateException("Duplicated vault #" + order + " entry found for owner " + vault.getOwner() + " and vault " + vault.getId());
+            if (unique) {
+                final Integer order = vault.get(VaultDefaultMetadata.ORDER);
+                final List<UUID> ids = selectMetadataIds(con, vault.getOwner(), VaultDefaultMetadata.ORDER.getKey(), String.valueOf(order));
+                if (ids != null && !ids.isEmpty() && (!ids.contains(vault.getId()) || ids.size() > 1)) {
+                    throw new VaultOrderException(order, vault.getOwner(), vault.getId());
+                }
             }
 
             try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.SELECT_CONTENT, vaultTable)) {

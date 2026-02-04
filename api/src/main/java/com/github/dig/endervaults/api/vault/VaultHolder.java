@@ -1,5 +1,6 @@
 package com.github.dig.endervaults.api.vault;
 
+import com.github.dig.endervaults.api.vault.exception.VaultOrderException;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -69,8 +70,7 @@ public class VaultHolder {
         final Optional<Vault> optional = getVault(order);
         if (optional.isPresent()) {
             vault.set(VaultState.ERROR);
-            optional.get().set(VaultState.ERROR);
-            throw new IllegalArgumentException("Duplicated vault #" + order + " entry found for owner " + owner + " and vault " + vault.getId());
+            throw new VaultOrderException(order, owner, vault.getId());
         }
 
         this.vaults.put(vault.getId(), vault);

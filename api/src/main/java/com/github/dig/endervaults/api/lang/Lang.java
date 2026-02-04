@@ -11,6 +11,7 @@ public enum Lang {
     VAULT_SELECT_ICON_REMOVE("vault-select-icon-remove"),
     INVALID_VAULT_ORDER("invalid-vault-order"),
     INVALID_VAULT_STATE("invalid-vault-state"),
+    INVALID_VAULT_MULTIPLE("invalid-vault-multiple"),
     PLAYER_NOT_LOADED("player-not-loaded"),
     PLAYER_LOADING_ERROR("player-loading-error"),
     NO_PERMISSION("no-permission"),

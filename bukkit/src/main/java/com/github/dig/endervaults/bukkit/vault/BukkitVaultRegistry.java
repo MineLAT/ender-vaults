@@ -1,17 +1,19 @@
 package com.github.dig.endervaults.bukkit.vault;
 
 import com.github.dig.endervaults.api.VaultPluginProvider;
+import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.VaultHolder;
 import com.github.dig.endervaults.api.vault.VaultRegistry;
 import com.github.dig.endervaults.api.vault.VaultState;
+import com.github.dig.endervaults.api.vault.exception.VaultOrderException;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -43,12 +45,20 @@ public class BukkitVaultRegistry implements VaultRegistry {
         final Runnable runnable = () -> {
             try {
                 for (Vault vault : dataStorage.load(owner)) {
-                    holder.compute(vault);
+                    try {
+                        holder.compute(vault);
+                    } catch (VaultOrderException e) {
+                        plugin.getLogger().log(Level.WARNING, "Exception while loading player " + owner, e);
+                        final Player player = Bukkit.getPlayer(owner);
+                        if (player != null) {
+                            player.sendMessage(plugin.getLanguage().get(Lang.INVALID_VAULT_MULTIPLE, Map.of("order", e.getOrder())));
+                        }
+                    }
                 }
                 holder.setState(VaultState.LOADED);
             } catch (Throwable t) {
                 holder.setState(VaultState.ERROR);
-                t.printStackTrace();
+                plugin.getLogger().log(Level.SEVERE, "Exception while loading player " + owner, t);
             }
         };
         final long delay = plugin.getConfigFile().getConfiguration().getLong("storage.settings.load-delay", 5 * 20);

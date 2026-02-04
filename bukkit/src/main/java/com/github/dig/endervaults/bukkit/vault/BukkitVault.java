@@ -235,7 +235,7 @@ public class BukkitVault implements Vault, InventoryHolder {
             future = new CompletableFuture<>();
             Bukkit.getScheduler().runTaskAsynchronously(VaultPluginProvider.<EVBukkitPlugin>getPlugin(), () -> {
                 try {
-                    VaultPluginProvider.getPlugin().getDataStorage().loadContents(this);
+                    VaultPluginProvider.getPlugin().getDataStorage().loadContents(this, false);
 
                     setContentState(VaultState.LOADED);
                     set(VaultDefaultMetadata.FREE_SIZE, getFreeSize());
