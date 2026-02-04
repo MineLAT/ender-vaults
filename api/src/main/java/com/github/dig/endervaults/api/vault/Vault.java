@@ -47,6 +47,10 @@ public interface Vault {
 
     // utility methods
 
+    default boolean isBlank() {
+        return getSize() == getFreeSize() && !has(VaultDefaultMetadata.ICON);
+    }
+
     default boolean meet(@NotNull VaultState state) {
         return getContentState() == state || getMetadataState() == state;
     }

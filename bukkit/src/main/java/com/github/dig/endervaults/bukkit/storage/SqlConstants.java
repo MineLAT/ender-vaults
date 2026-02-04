@@ -5,7 +5,8 @@ public final class SqlConstants {
     public static final String SQL_CREATE_TABLE_VAULT = "CREATE TABLE IF NOT EXISTS `%s` ( `id` VARCHAR(36) NOT NULL , `owner_uuid` VARCHAR(36) NOT NULL , `size` INT(8) NOT NULL , `contents` LONGTEXT NOT NULL , PRIMARY KEY (`id`, `owner_uuid`) )";
     public static final String SQL_CREATE_TABLE_VAULT_METADATA = "CREATE TABLE IF NOT EXISTS `%s` ( `id` VARCHAR(36) NOT NULL , `owner_uuid` VARCHAR(36) NOT NULL , `name` VARCHAR(16) NOT NULL , `value` TEXT NOT NULL , PRIMARY KEY (`id`, `owner_uuid`, `name`) )";
 
-    public static final String DELETE = "DELETE FROM `%s` WHERE `owner_uuid` = ?";
+    public static final String DELETE_OWNER = "DELETE FROM `%s` WHERE `owner_uuid` = ?";
+    public static final String DELETE_VAULT = "DELETE FROM `%s` WHERE `id` = ?";
 
     public static final class Vault {
         public static final String CHECK_VAULT = "SELECT `size` FROM `%s` WHERE `id` = ? AND `owner_uuid` = ?";

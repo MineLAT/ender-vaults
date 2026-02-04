@@ -151,7 +151,16 @@ public class HikariStorage implements DataStorage {
     @Override
     public void save(Vault vault) throws Throwable {
         connect(con -> {
-            if (exists(con, vault.getOwner(), vault.getId())) {
+            if (vault.isBlank()) {
+                try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE_VAULT, vaultTable)) {
+                    stmt.setString(1, vault.getId().toString());
+                    stmt.executeUpdate();
+                }
+                try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE_VAULT, metadataTable)) {
+                    stmt.setString(1, vault.getId().toString());
+                    stmt.executeUpdate();
+                }
+            } else if (exists(con, vault.getOwner(), vault.getId())) {
                 if (vault.getContentState() == VaultState.MODIFIED) {
                     updateContent(con, vault.getId(), vault.getOwner(), vault.getSize(), vault.getContent());
 
@@ -201,11 +210,11 @@ public class HikariStorage implements DataStorage {
     public int delete(UUID ownerUUID) throws Throwable {
         return connect(con -> {
             int result = 0;
-            try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE, vaultTable)) {
+            try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE_OWNER, vaultTable)) {
                 stmt.setString(1, ownerUUID.toString());
                 result = stmt.executeUpdate();
             }
-            try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE, metadataTable)) {
+            try (PreparedStatement stmt = stmt(con, SqlConstants.DELETE_OWNER, metadataTable)) {
                 stmt.setString(1, ownerUUID.toString());
                 stmt.executeUpdate();
             }
