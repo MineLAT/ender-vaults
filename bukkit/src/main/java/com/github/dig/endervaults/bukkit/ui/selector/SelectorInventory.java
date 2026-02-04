@@ -71,7 +71,7 @@ public class SelectorInventory {
 
         ItemStack locked = createLockedItem();
         Player target = Bukkit.getPlayer(ownerUUID);
-        VaultHolder holder = plugin.getRegistry().getHolder(ownerUUID);
+        VaultHolder holder = registry.getHolder(ownerUUID);
         if (holder.getState().isNotValid()) {
             return;
         }

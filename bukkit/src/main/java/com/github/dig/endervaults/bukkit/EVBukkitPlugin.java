@@ -77,8 +77,9 @@ public class EVBukkitPlugin extends JavaPlugin implements EnderVaultsPlugin {
     }
 
     @Override
-    public UserPermission getPermission() {
-        return permission;
+    @SuppressWarnings("unchecked")
+    public <T> UserPermission<T> getPermission() {
+        return (UserPermission<T>) permission;
     }
 
     @Override

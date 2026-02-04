@@ -19,7 +19,7 @@ public interface EnderVaultsPlugin {
 
     DataStorage getDataStorage();
 
-    UserPermission getPermission();
+    <T> UserPermission<T> getPermission();
 
     VaultMetadataRegistry getMetadataRegistry();
 }
