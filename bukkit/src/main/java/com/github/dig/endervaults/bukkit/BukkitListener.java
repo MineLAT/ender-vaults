@@ -68,6 +68,7 @@ public class BukkitListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
+            vault.setContentState(VaultState.MODIFIED);
 
             if (item != null && isBlacklistEnabled() && !permission.canBypassBlacklist(player)) {
                 final Set<Material> blacklist = getBlacklisted();
@@ -81,13 +82,13 @@ public class BukkitListener implements Listener {
                         event.setCancelled(true);
                         return;
                     }
-                } else if (event.getRawSlot() < vault.getSize()) {
+                } else {
                     final ItemStack swapped;
                     if (event.getAction() == InventoryAction.HOTBAR_SWAP || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD) {
                         if (event.getHotbarButton() == -1) {
                             swapped = player.getInventory().getItem(EquipmentSlot.OFF_HAND);
                         } else {
-                            swapped = inventory.getItem(event.getHotbarButton());
+                            swapped = player.getInventory().getItem(event.getHotbarButton());
                         }
                     } else {
                         swapped = event.getCursor();
@@ -100,7 +101,6 @@ public class BukkitListener implements Listener {
                     }
                 }
             }
-            vault.setContentState(VaultState.MODIFIED);
         }
     }
 

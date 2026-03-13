@@ -57,7 +57,7 @@ public class VaultHolder {
     public synchronized void compute(@NotNull Vault vault) {
         final Integer order = vault.get(VaultDefaultMetadata.ORDER);
         if (order == null) {
-            throw new IllegalArgumentException("Cannot add vault with invalid order");
+            throw new IllegalArgumentException("Cannot add vault with unknown order: " + vault.getId());
         }
 
         final Vault current = this.vaults.remove(vault.getId());
