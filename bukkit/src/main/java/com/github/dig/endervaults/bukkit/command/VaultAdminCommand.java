@@ -22,6 +22,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 public class VaultAdminCommand implements CommandExecutor {
 
@@ -82,23 +83,30 @@ public class VaultAdminCommand implements CommandExecutor {
             return;
         }
 
+        int snapshot = args.length > 2 ? Integer.parseInt(args[2]) : 0;
+
+        plugin.getLogger().info("Looking vault #" + vaultOrder + " [" + snapshot + "] from " + (player.isOnline() ? "online" : "offline") + " player " + target.getUniqueId());
+
         final Optional<Vault> result;
         if (target.isOnline()) {
             result = plugin.getRegistry().getHolder(target.getUniqueId()).getVault(vaultOrder);
         } else {
             try {
-                result = plugin.getDataStorage().loadSnapshot(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder, args.length > 2 ? Integer.parseInt(args[2]) : 0);
+                result = plugin.getDataStorage().loadSnapshot(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder, snapshot);
             } catch (Throwable t) {
+                plugin.getLogger().log(Level.WARNING, "There is an error while loading the vault", t);
                 throw new RuntimeException(t);
             }
         }
-        result.ifPresent(vault -> {
+        result.ifPresentOrElse(vault -> {
             plugin.getLogger().info("Launching vault " + vault.getId() + " for player " + player.getName());
             if (Bukkit.isPrimaryThread()) {
                 ((BukkitVault) vault).launchFor(player);
             } else {
                 Bukkit.getScheduler().runTask(plugin, () -> ((BukkitVault) vault).launchFor(player));
             }
+        }, () -> {
+            plugin.getLogger().info("Cannot find vault");
         });
     }
 }

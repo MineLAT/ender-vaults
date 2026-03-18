@@ -109,6 +109,6 @@ public class ItemDataFix {
         if (version == newVersion) {
             return compound;
         }
-        return MinecraftServer.getServer().getFixerUpper().update(References.ITEM_STACK, new Dynamic<>(NbtOps.INSTANCE, (Tag) compound), version.dataVersion().get(), newVersion.dataVersion().get()).getValue();
+        return MinecraftServer.getServer().getFixerUpper().update(References.ITEM_STACK, new Dynamic<>(NbtOps.INSTANCE, (Tag) compound), version.dataVersion().orElse(99), newVersion.dataVersion().get()).getValue();
     }
 }
