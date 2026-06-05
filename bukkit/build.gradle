@@ -37,6 +37,7 @@ processResources {
 shadowJar {
     archiveBaseName.set(rootProject.name + '-' + project.name)
     archiveClassifier.set('')
+    destinationDirectory.set(file(rootProject.layout.buildDirectory.dir('libs')))
 
     relocate 'com.zaxxer.hikari', project.group + '.lib.hikari'
     relocate 'org.mariadb.jdbc', project.group + '.lib.mariadb'
