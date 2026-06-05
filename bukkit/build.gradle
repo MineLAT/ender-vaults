@@ -19,11 +19,11 @@ dependencies {
     compileOnly('com.github.Rubenicos:DataFixerUpper:9.0') { transitive = false }
 
     compileOnly 'net.luckperms:api:5.4'
+    compileOnly 'com.saicone.rtag:rtag:1.5.14'
+    compileOnly 'com.saicone.rtag:rtag-item:1.5.14'
 
     implementation 'com.zaxxer:HikariCP:7.0.2'
     implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.7'
-    implementation 'com.saicone.rtag:rtag:1.5.14'
-    implementation 'com.saicone.rtag:rtag-item:1.5.14'
 }
 
 processResources {
@@ -40,7 +40,6 @@ shadowJar {
 
     relocate 'com.zaxxer.hikari', project.group + '.lib.hikari'
     relocate 'org.mariadb.jdbc', project.group + '.lib.mariadb'
-    relocate 'com.saicone.rtag', project.group + '.lib.rtag'
 
     minimize {
         exclude(dependency('org.mariadb.jdbc:mariadb-java-client:.*'))
