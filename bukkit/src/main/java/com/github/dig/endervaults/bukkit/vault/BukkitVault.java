@@ -181,10 +181,14 @@ public class BukkitVault implements Vault, InventoryHolder {
                     continue;
                 }
 
-                if (MC.version().isComponent() && ServerInstance.Type.MOJANG_MAPPED) {
-                    items[i] = ItemDataFix.decodeItem(compound);
-                } else {
-                    items[i] = ItemTagStream.INSTANCE.fromCompound(compound);
+                try {
+                    if (MC.version().isComponent() && ServerInstance.Type.MOJANG_MAPPED) {
+                        items[i] = ItemDataFix.decodeItem(compound);
+                    } else {
+                        items[i] = ItemTagStream.INSTANCE.fromCompound(compound);
+                    }
+                } catch (Throwable t) {
+                    throw new IOException("Cannot decode item: " + compound, t);
                 }
             }
         }
