@@ -149,13 +149,15 @@ public class BukkitListener implements Listener {
             final BukkitVault vault = (BukkitVault) event.getInventory().getHolder();
             vault.set(VaultDefaultMetadata.FREE_SIZE, vault.getFreeSize());
             if (vault.meet(VaultState.MODIFIED)) {
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                    try {
-                        plugin.getDataStorage().save(vault);
-                    } catch (Throwable t) {
-                        throw new RuntimeException(t);
+                Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+                    if (((Player) event.getPlayer()).isOnline() && vault.meet(VaultState.MODIFIED)) {
+                        try {
+                            plugin.getDataStorage().save(vault);
+                        } catch (Throwable t) {
+                            throw new RuntimeException(t);
+                        }
                     }
-                });
+                }, 40L);
             }
         }
     }
