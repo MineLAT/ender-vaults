@@ -4,26 +4,20 @@ plugins {
 
 repositories {
     maven { url = uri('https://hub.spigotmc.org/nexus/content/repositories/snapshots/') }
-    maven { url = uri('https://oss.sonatype.org/content/repositories/snapshots') }
-    maven { url = uri('https://oss.sonatype.org/content/repositories/central') }
     maven { url = uri('https://repo.codemc.org/repository/nms/') }
-    maven { url = uri('https://jitpack.io') }
 }
 
 dependencies {
     implementation project(':api')
 
-    compileOnly('org.spigotmc:spigot:1.21.11-R0.1-SNAPSHOT:remapped-mojang') {
-        exclude group: 'com.mojang'
-    }
-    compileOnly('com.github.Rubenicos:DataFixerUpper:9.0') { transitive = false }
+    compileOnly 'org.spigotmc:spigot-api:26.2-R0.1-SNAPSHOT'
 
     compileOnly 'net.luckperms:api:5.4'
-    compileOnly 'com.saicone.rtag:rtag:1.5.14'
-    compileOnly 'com.saicone.rtag:rtag-item:1.5.14'
+    compileOnly 'com.saicone:rtag:1.5.17'
+    compileOnly 'com.saicone:rtag-item:1.5.17'
 
-    implementation 'com.zaxxer:HikariCP:7.0.2'
-    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.7'
+    implementation 'com.zaxxer:HikariCP:7.1.0'
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.10'
 }
 
 processResources {
@@ -38,6 +32,10 @@ shadowJar {
     archiveBaseName.set(rootProject.name + '-' + project.name)
     archiveClassifier.set('')
     destinationDirectory.set(file(rootProject.layout.buildDirectory.dir('libs')))
+
+    manifest {
+        attributes 'Paperweight-Mappings-Namespace': 'mojang'
+    }
 
     relocate 'com.zaxxer.hikari', project.group + '.lib.hikari'
     relocate 'org.mariadb.jdbc', project.group + '.lib.mariadb'

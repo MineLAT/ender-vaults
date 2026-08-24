@@ -6,8 +6,8 @@ import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.VaultState;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
-import com.github.dig.endervaults.bukkit.util.ItemDataFix;
 import com.saicone.rtag.item.ItemData;
+import com.saicone.rtag.item.ItemDataFix;
 import com.saicone.rtag.item.ItemObject;
 import com.saicone.rtag.item.ItemTagStream;
 import com.saicone.rtag.stream.TStreamTools;
@@ -176,17 +176,14 @@ public class BukkitVault implements Vault, InventoryHolder {
                     continue;
                 }
 
+                // Safe check since 1.20.5 "minecraft:air" no longer exist
                 final String id = String.valueOf(TagBase.getValue(value.get("id")));
                 if (id.equalsIgnoreCase("minecraft:air") || id.equalsIgnoreCase("air")) {
                     continue;
                 }
 
                 try {
-                    if (MC.version().isComponent() && ServerInstance.Type.MOJANG_MAPPED) {
-                        items[i] = ItemDataFix.decodeItem(compound);
-                    } else {
-                        items[i] = ItemTagStream.INSTANCE.fromCompound(compound);
-                    }
+                    items[i] = ItemDataFix.safe().decodeItem(compound);
                 } catch (Throwable t) {
                     throw new IOException("Cannot decode item: " + compound, t);
                 }
