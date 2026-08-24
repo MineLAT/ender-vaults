@@ -2,6 +2,7 @@ package com.github.dig.endervaults.api.storage;
 
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -21,7 +22,13 @@ public interface DataStorage {
     Optional<Vault> load(UUID ownerUUID, UUID id) throws Throwable;
 
     @NotNull
-    <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable;
+    default <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable {
+        return loadSnapshot(ownerUUID, meta, value, snapshot, ContentMethod.THROW);
+    }
+
+    @ApiStatus.Experimental
+    @NotNull
+    <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot, @NotNull ContentMethod method) throws Throwable;
 
     default void loadContents(@NotNull Vault vault, boolean unique) throws Throwable {
         throw new IllegalStateException("The current database type doesn't support vault content loading");

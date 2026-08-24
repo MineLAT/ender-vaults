@@ -2,6 +2,7 @@ package com.github.dig.endervaults.bukkit.storage;
 
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
+import com.github.dig.endervaults.api.storage.ContentMethod;
 import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
 import com.github.dig.endervaults.api.vault.Vault;
@@ -113,18 +114,18 @@ public class HikariStorage implements DataStorage {
     @Override
     public Optional<Vault> load(UUID ownerUUID, UUID id) throws Throwable {
         return connect(con -> {
-            return selectVault(con, id, ownerUUID);
+            return selectVault(con, id, ownerUUID, ContentMethod.THROW);
         });
     }
 
     @Override
-    public @NotNull <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable {
+    public @NotNull <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot, @NotNull ContentMethod method) throws Throwable {
         return connect(con -> {
             final List<UUID> ids = selectMetadataIds(con, ownerUUID, meta.getKey(), meta.save(value));
             if (ids == null || ids.isEmpty() || snapshot >= ids.size()) {
                 return Optional.empty();
             }
-            return selectVault(con, ids.get(snapshot), ownerUUID);
+            return selectVault(con, ids.get(snapshot), ownerUUID, method);
         });
     }
 
@@ -145,7 +146,7 @@ public class HikariStorage implements DataStorage {
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
                     String contents = rs.getString("contents");
-                    vault.setContent(contents);
+                    vault.setContent(contents, ContentMethod.THROW);
                 }
             }
         });
@@ -311,7 +312,7 @@ public class HikariStorage implements DataStorage {
     }
 
     @NotNull
-    private Optional<Vault> selectVault(@NotNull Connection con, @NotNull UUID id, @NotNull UUID ownerUUID) throws Throwable {
+    private Optional<Vault> selectVault(@NotNull Connection con, @NotNull UUID id, @NotNull UUID ownerUUID, @NotNull ContentMethod method) throws Throwable {
         int size;
         String contents;
         try (PreparedStatement stmt = stmt(con, SqlConstants.Vault.SELECT_VAULT, vaultTable)) {
@@ -328,7 +329,7 @@ public class HikariStorage implements DataStorage {
         }
 
         final BukkitVault vault = createVault(con, id, ownerUUID, size);
-        vault.setContent(contents);
+        vault.setContent(contents, method);
         vault.setContentState(VaultState.LOADED);
 
         return Optional.of(vault);

@@ -2,6 +2,7 @@ package com.github.dig.endervaults.bukkit.vault;
 
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
+import com.github.dig.endervaults.api.storage.ContentMethod;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.VaultState;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
@@ -9,13 +10,11 @@ import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
 import com.saicone.rtag.item.ItemData;
 import com.saicone.rtag.item.ItemDataFix;
 import com.saicone.rtag.item.ItemObject;
-import com.saicone.rtag.item.ItemTagStream;
 import com.saicone.rtag.stream.TStreamTools;
 import com.saicone.rtag.tag.TagBase;
 import com.saicone.rtag.tag.TagCompound;
 import com.saicone.rtag.tag.TagList;
 import com.saicone.rtag.util.MC;
-import com.saicone.rtag.util.ServerInstance;
 import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -31,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 @Log
 public class BukkitVault implements Vault, InventoryHolder {
@@ -164,7 +164,7 @@ public class BukkitVault implements Vault, InventoryHolder {
     }
 
     @Override
-    public void setContent(@NotNull String encoded) throws IOException {
+    public void setContent(@NotNull String encoded, @NotNull ContentMethod method) throws IOException {
         ItemStack[] items = new ItemStack[inventory.getSize()];
         try (ByteArrayInputStream array = new ByteArrayInputStream(Base64.getDecoder().decode(encoded)); DataInputStream in = new DataInputStream(array)) {
             Object tagList = TStreamTools.read(in);
@@ -185,7 +185,11 @@ public class BukkitVault implements Vault, InventoryHolder {
                 try {
                     items[i] = ItemDataFix.safe().decodeItem(compound);
                 } catch (Throwable t) {
-                    throw new IOException("Cannot decode item: " + compound, t);
+                    if (method == ContentMethod.DISCARD) {
+                        log.log(Level.WARNING, "Discarding invalid item: " + compound, t);
+                    } else {
+                        throw new IOException("Cannot decode item: " + compound, t);
+                    }
                 }
             }
         }

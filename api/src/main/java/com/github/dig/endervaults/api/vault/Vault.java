@@ -1,6 +1,8 @@
 package com.github.dig.endervaults.api.vault;
 
+import com.github.dig.endervaults.api.storage.ContentMethod;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,7 +36,12 @@ public interface Vault {
     @NotNull
     VaultState getMetadataState();
 
-    void setContent(@NotNull String encoded) throws IOException;
+    default void setContent(@NotNull String encoded) throws IOException {
+        setContent(encoded, ContentMethod.THROW);
+    }
+
+    @ApiStatus.Experimental
+    void setContent(@NotNull String encoded, @NotNull ContentMethod method) throws IOException;
 
     @Nullable
     <T> Object setMetadata(@NotNull VaultDefaultMetadata<T> meta, @Nullable T value);

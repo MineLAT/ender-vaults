@@ -2,6 +2,7 @@ package com.github.dig.endervaults.bukkit.storage;
 
 import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
+import com.github.dig.endervaults.api.storage.ContentMethod;
 import com.github.dig.endervaults.api.storage.DataStorage;
 import com.github.dig.endervaults.api.storage.Storage;
 import com.github.dig.endervaults.api.vault.Vault;
@@ -61,11 +62,11 @@ public class YamlStorage implements DataStorage {
         if (configuration == null) {
             return Optional.empty();
         }
-        return Optional.of(deserialize(ownerUUID, id, configuration));
+        return Optional.of(deserialize(ownerUUID, id, configuration, ContentMethod.THROW));
     }
 
     @Override
-    public @NotNull <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot) throws Throwable {
+    public @NotNull <T> Optional<Vault> loadSnapshot(@NotNull UUID ownerUUID, @NotNull VaultDefaultMetadata<T> meta, @NotNull T value, int snapshot, @NotNull ContentMethod method) throws Throwable {
         final File file = getOwnerFolder(ownerUUID);
         if (file.isDirectory()) {
             File[] files = file.listFiles((File f, String name) -> name.endsWith(".yml"));
@@ -82,7 +83,7 @@ public class YamlStorage implements DataStorage {
                 }
                 if (value.equals(meta.parse(fileValue))) {
                     if (count == snapshot) {
-                        return Optional.of(deserialize(ownerUUID, id, configuration));
+                        return Optional.of(deserialize(ownerUUID, id, configuration, method));
                     }
                     count++;
                 }
@@ -106,7 +107,7 @@ public class YamlStorage implements DataStorage {
     }
 
     @NotNull
-    private Vault deserialize(@NotNull UUID ownerUUID, @NotNull UUID id, @NotNull FileConfiguration configuration) throws Throwable {
+    private Vault deserialize(@NotNull UUID ownerUUID, @NotNull UUID id, @NotNull FileConfiguration configuration, @NotNull ContentMethod method) throws Throwable {
         VaultMetadataRegistry metadataRegistry = plugin.getMetadataRegistry();
 
         int size = configuration.getInt("size");
@@ -121,7 +122,7 @@ public class YamlStorage implements DataStorage {
         String title = plugin.getLanguage().get(Lang.VAULT_TITLE, metadata);
         BukkitVault vault = new BukkitVault(id, title, size, ownerUUID, metadata);
 
-        vault.setContent(configuration.getString("contents"));
+        vault.setContent(configuration.getString("contents"), method);
 
         return vault;
     }

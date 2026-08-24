@@ -4,6 +4,7 @@ import com.github.dig.endervaults.api.VaultPluginProvider;
 import com.github.dig.endervaults.api.lang.Lang;
 import com.github.dig.endervaults.api.lang.Language;
 import com.github.dig.endervaults.api.permission.UserPermission;
+import com.github.dig.endervaults.api.storage.ContentMethod;
 import com.github.dig.endervaults.api.vault.Vault;
 import com.github.dig.endervaults.api.vault.metadata.VaultDefaultMetadata;
 import com.github.dig.endervaults.bukkit.EVBukkitPlugin;
@@ -85,14 +86,16 @@ public class VaultAdminCommand implements CommandExecutor {
 
         int snapshot = args.length > 2 ? Integer.parseInt(args[2]) : 0;
 
-        plugin.getLogger().info("Looking vault #" + vaultOrder + " [" + snapshot + "] from " + (player.isOnline() ? "online" : "offline") + " player " + target.getUniqueId());
+        ContentMethod method = args.length > 3 ? ContentMethod.valueOf(args[3].toUpperCase()) : ContentMethod.THROW;
+
+        plugin.getLogger().info("Looking vault #" + vaultOrder + " [" + snapshot + "] from " + (player.isOnline() ? "online" : "offline") + " player " + target.getUniqueId() + " using " + method.name() + " method");
 
         final Optional<Vault> result;
         if (target.isOnline()) {
             result = plugin.getRegistry().getHolder(target.getUniqueId()).getVault(vaultOrder);
         } else {
             try {
-                result = plugin.getDataStorage().loadSnapshot(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder, snapshot);
+                result = plugin.getDataStorage().loadSnapshot(target.getUniqueId(), VaultDefaultMetadata.ORDER, vaultOrder, snapshot, method);
             } catch (Throwable t) {
                 plugin.getLogger().log(Level.WARNING, "There is an error while loading the vault", t);
                 throw new RuntimeException(t);
